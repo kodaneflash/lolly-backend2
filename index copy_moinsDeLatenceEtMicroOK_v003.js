@@ -11,13 +11,6 @@ import { createWriteStream } from "fs";
 import fetch from "node-fetch"; // tout en haut du fichier si pas encore importé
 import { execFile } from "child_process";
 import { promisify } from "util";
-import { answerWithRAG } from "./rag/qa.js";
-import { ingestDocuments } from "./rag/ingest.js";
-
-// App initialization
-(async () => {
-  await ingestDocuments(); // ✅ Index once when app starts
-})();
 
 const execFileAsync = promisify(execFile);
 
@@ -30,7 +23,7 @@ app.use(cors());
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "-" });
 const elevenLabsApiKey = process.env.ELEVEN_LABS_API_KEY;
-const voiceID = "EXAVITQu4vr4xnSDxMaL";
+const voiceID = "CwhRBWXzGAHq8TQ4Fs17";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const audiosDir = path.resolve(__dirname, "audios");
@@ -147,48 +140,47 @@ app.post("/chat", async (req, res) => {
   if (!userMessage) return res.status(400).send({ error: "Missing message." });
 
   try {
-    // 🔁 Nouvelle version avec RAG intégré
-    const ragResponse = await answerWithRAG(userMessage);
-    let messages = ragResponse.messages;
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4-turbo",
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content: `
+Tu es un assistant professionnel pour www.neemba.com. Tu réponds en français avec un JSON structuré contenant "messages" (tableau de max 3 objets). Chaque message contient :
+- text (réponse courte)
+- facialExpression: [smile, sad, angry, surprised, funnyFace, default]
+- animation: [Talking_0, Talking_1, Talking_2, Crying, Laughing, Rumba, Idle, Terrified, Angry]
+- image (optional)
+- source (optional)
+          `.trim()
+        },
+        { role: "user", content: userMessage }
+      ]
+    });
 
-    // 🖨️ Log des messages générés par OpenAI
-    console.log("🔹 OpenAI Response Messages:", JSON.stringify(messages, null, 2));
+    let messages = JSON.parse(completion.choices[0].message.content);
+    if (messages.messages) messages = messages.messages;
 
-    // 🔊 Traitement audio et lipsync
     const processedMessages = await Promise.all(messages.map(async (message, i) => {
       const uniqueId = `${Date.now()}_${i}`;
       const mp3File = path.resolve(audiosDir, `message_${uniqueId}.mp3`);
       const jsonFile = path.resolve(audiosDir, `message_${uniqueId}.json`);
 
       try {
-        // Tente de générer l'audio avec ElevenLabs
         await generateSpeechWithStreaming(message.text, mp3File);
         await lipSyncMessage(uniqueId);
-
-        // Retourne le message avec audio et lipsync
         return {
           ...message,
           audio: await audioFileToBase64(mp3File),
           lipsync: await readJsonTranscript(jsonFile),
         };
       } catch (err) {
-        // Gestion des erreurs ElevenLabs
-        if (err.message.includes("quota_exceeded")) {
-          console.error("❌ ElevenLabs quota exceeded. Returning text-only response.");
-        } else {
-          console.error("Error processing message:", err);
-        }
-
-        // Retourne uniquement le texte en cas d'erreur
-        return {
-          ...message,
-          audio: null,
-          lipsync: null,
-        };
+        console.error("Error processing message:", err);
+        return { ...message, audio: null, lipsync: null };
       }
     }));
 
-    // Envoyer les messages traités
     res.send({ messages: processedMessages });
   } catch (error) {
     console.error("Chat error:", error);
