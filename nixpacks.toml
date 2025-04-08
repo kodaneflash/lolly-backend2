@@ -1,2 +1,5 @@
 [phases.setup]
 nixPkgs = ["ffmpeg", "yarn"]
+
+[phases.build]
+runtime = "nodejs-18"
