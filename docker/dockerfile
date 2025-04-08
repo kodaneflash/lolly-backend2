@@ -1,16 +1,17 @@
 # Étape 1 : Image de base avec Node.js 18
 FROM node:18-slim
 
-# Étape 2 : Installer curl, gnupg et deps en deux étapes pour éviter l’erreur
+# Étape 2 : Installer curl, gnupg et dash (pour shell)
 RUN apt-get update && apt-get install -y \
   curl \
-  gnupg
+  gnupg \
+  dash
 
-# Étape 3 : Installer yarn proprement
+# Étape 3 : Installer Yarn
 RUN curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - && \
   echo "deb https://dl.yarnpkg.com/debian stable main" > /etc/apt/sources.list.d/yarn.list
 
-# Étape 4 : Installer ffmpeg, wget, unzip, yarn
+# Étape 4 : Installer ffmpeg, unzip, wget, yarn
 RUN apt-get update && apt-get install -y \
   ffmpeg \
   unzip \

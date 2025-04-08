@@ -19,7 +19,13 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 // Middleware CORS autorisant toutes les origines (pour EB et tests)
-app.use(cors());
+// Middleware CORS autorisant toutes les origines (à sécuriser ensuite)
+app.use(cors({
+  origin: ["https://neemba-frontend.vercel.app"],
+  methods: ["GET", "POST"],
+  credentials: true
+}));
+
 app.use(express.json());
 
 // Serve les fichiers audio statiquement
