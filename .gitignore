@@ -2,3 +2,7 @@
 node_modules
 bin
 audios/message_*
+# Elastic Beanstalk Files
+.elasticbeanstalk/*
+!.elasticbeanstalk/*.cfg.yml
+!.elasticbeanstalk/*.global.yml

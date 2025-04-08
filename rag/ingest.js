@@ -5,22 +5,41 @@ import vectorStore from "./store.js";
 
 let hasIndexed = false;
 
+function readTextFilesFromDir(dirPath) {
+  const files = fs.readdirSync(dirPath);
+  return files
+    .filter(file => file.endsWith(".txt") || file.endsWith(".md"))
+    .map(file => ({
+      name: file,
+      content: fs.readFileSync(path.join(dirPath, file), "utf8"),
+    }));
+}
+
+function splitIntoChunks(text, min = 200, max = 500) {
+  const pattern = new RegExp(`(.|\\s){${min},${max}}`, "g");
+  return text.match(pattern) || [];
+}
+
 export async function ingestDocuments(directory = "rag_project/docs") {
-  if (hasIndexed) return; // ✅ skip si déjà fait
+  if (hasIndexed) return;
 
-  const files = fs.readdirSync(directory);
-  for (const file of files) {
-    const fullPath = path.resolve(directory, file);
-    const content = fs.readFileSync(fullPath, "utf8");
-    const chunks = content.match(/(.|\s){200,500}/g); // split par taille
-    await vectorStore.addDocuments(
-      chunks.map(chunk => ({
+  try {
+    const documents = readTextFilesFromDir(directory);
+
+    for (const { name, content } of documents) {
+      const chunks = splitIntoChunks(content);
+      const docs = chunks.map(chunk => ({
         pageContent: chunk,
-        metadata: { source: file },
-      }))
-    );
-    console.log(`✅ Document "${file}" indexé (${chunks.length} chunks)`);
-  }
+        metadata: { source: name },
+      }));
 
-  hasIndexed = true;
+      await vectorStore.addDocuments(docs);
+      console.log(`✅ "${name}" indexé (${chunks.length} chunk${chunks.length > 1 ? "s" : ""})`);
+    }
+
+    hasIndexed = true;
+  } catch (err) {
+    console.error("❌ Erreur d'indexation des documents:", err.message);
+    throw err;
+  }
 }

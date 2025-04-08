@@ -12,41 +12,38 @@ import {
   ensureAudiosDirectory,
 } from "./lib/audioUtils.js";
 
+
 dotenv.config();
-await ingestDocuments(); // Ingestion initiale au démarrage
 
 const app = express();
+const port = process.env.PORT || 3000;
 
-// ✅ CORS: configuration propre pour localhost + vercel frontend
-const allowedOrigins = [
-  "http://localhost:5173",
-  "https://neemba-frontend.vercel.app"
-];
-
-app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) return callback(null, true);
-    return callback(new Error("Not allowed by CORS"));
-  },
-  credentials: true
-}));
-
+// Middleware CORS autorisant toutes les origines (pour EB et tests)
+app.use(cors());
 app.use(express.json());
-app.use("/audios", express.static("audios")); // pour accéder aux fichiers générés
 
-// ✅ Endpoint principal
+// Serve les fichiers audio statiquement
+app.use("/audios", express.static("audios"));
+
+// Endpoint de test pour Elastic Beanstalk
+app.get("/", (req, res) => {
+  res.send("✅ Neemba backend is running.");
+});
+
+// Endpoint principal
 app.post("/chat", async (req, res) => {
-  await ensureAudiosDirectory();
-  const userMessage = req.body.message;
-
-  if (!userMessage) return res.status(400).json({ error: "Missing message." });
-
   try {
+    await ensureAudiosDirectory();
+
+    const userMessage = req.body.message;
+    if (!userMessage) {
+      return res.status(400).json({ error: "Missing message." });
+    }
+
     const ragResponse = await answerWithRAG(userMessage);
     const messages = ragResponse.messages;
 
-    const processed = await Promise.all(
+    const processedMessages = await Promise.all(
       messages.map(async (msg, i) => {
         const id = `${Date.now()}_${i}`;
         const mp3 = `./audios/message_${id}.mp3`;
@@ -62,26 +59,33 @@ app.post("/chat", async (req, res) => {
             lipsync: await readJsonTranscript(json),
           };
         } catch (err) {
-          console.error("Audio processing failed:", err);
+          console.error("❌ Audio processing failed:", err.message);
           return { ...msg, audio: null, lipsync: null };
         }
       })
     );
 
-    res.json({ messages: processed });
+    res.status(200).json({ messages: processedMessages });
   } catch (error) {
-    console.error("Chat Error:", error);
-    res.status(500).json({ error: "Server error" });
+    console.error("❌ Chat endpoint error:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
-// ✅ Lancer le serveur seulement en local
-if (process.env.NODE_ENV !== "production") {
-  const port = process.env.PORT || 3000;
-  app.listen(port, () => {
-    console.log(`🚀 API running locally at http://localhost:${port}`);
-  });
-}
+// Démarrage de l'API avec ingestion de documents
+const startServer = async () => {
+  try {
+    console.log("⚙️ Ingesting documents...");
+    await ingestDocuments();
+    console.log("📚 Documents ingested successfully.");
 
-// ✅ Exporter pour Vercel
-export default app;
+    app.listen(port, "0.0.0.0", () => {
+      console.log(`🚀 Neemba API listening on port ${port}`);
+    });
+  } catch (err) {
+    console.error("❌ Fatal error on startup:", err);
+    process.exit(1);
+  }
+};
+
+startServer();

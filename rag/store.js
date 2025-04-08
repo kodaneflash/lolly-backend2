@@ -1,12 +1,19 @@
+// rag/store.js
 import { MemoryVectorStore } from "langchain/vectorstores/memory";
 import { OpenAIEmbeddings } from "langchain/embeddings/openai";
-import dotenv from "dotenv";
-dotenv.config();
 
-const embeddings = new OpenAIEmbeddings({
-  openAIApiKey: process.env.OPENAI_API_KEY,
-});
+let vectorStore: MemoryVectorStore | null = null;
 
-const vectorStore = await MemoryVectorStore.fromTexts([], [], embeddings);
+export const getVectorStore = async (): Promise<MemoryVectorStore> => {
+  if (vectorStore) return vectorStore;
 
-export default vectorStore;
+  const openAIApiKey = process.env.OPENAI_API_KEY;
+  if (!openAIApiKey) {
+    throw new Error("❌ Missing OPENAI_API_KEY in environment variables");
+  }
+
+  const embeddings = new OpenAIEmbeddings({ openAIApiKey });
+
+  vectorStore = await MemoryVectorStore.fromTexts([], [], embeddings);
+  return vectorStore;
+};

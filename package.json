@@ -1,7 +1,7 @@
 {
-  "name": "r3f-virtual-girlfriend-backend",
+  "name": "neemba-backend",
   "version": "1.0.0",
-  "description": "Backend for the virtual girlfriend app",
+  "description": "Express backend with ffmpeg for AWS Elastic Beanstalk",
   "main": "index.js",
   "type": "module",
   "scripts": {
@@ -25,5 +25,8 @@
   "devDependencies": {
     "ffmpeg-static": "^5.2.0",
     "nodemon": "^3.0.1"
-  }
+  },
+  "engines": {
+  "node": "18.x"
+}
 }
