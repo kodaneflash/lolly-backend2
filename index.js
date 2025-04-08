@@ -33,7 +33,7 @@ await ensureAudiosDir(); // Appelé juste après `dotenv.config()` par exemple
 const app = express();
 // Ajoute ça immédiatement après app = express();
 app.use(cors({
-  origin: "https://neemba-frontend.vercel.app",
+  origin: ["https://neemba-frontend.vercel.app", "http://localhost:3000"], // Allow both production and local development
   methods: ["GET", "POST"],
   credentials: true
 }));
