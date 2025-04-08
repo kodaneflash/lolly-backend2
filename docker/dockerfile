@@ -1,7 +1,7 @@
-# Étape 1 : Image de base avec Node.js 18
+# Base Node.js image
 FROM node:18-slim
 
-# Étape 2 : Installer curl, gnupg, dash (shell), ffmpeg, unzip, wget, yarn
+# Install required dependencies
 RUN apt-get update && apt-get install -y \
   curl \
   gnupg \
@@ -14,13 +14,13 @@ RUN apt-get update && apt-get install -y \
   && apt-get update && apt-get install -y yarn \
   && rm -rf /var/lib/apt/lists/*
 
-# Étape 3 : Ajouter ffmpeg et yarn au PATH (précaution)
+# Set PATH explicitly
 ENV PATH="/usr/bin:/usr/local/bin:${PATH}"
 
-# Étape 4 : Vérification des versions
+# Verify installations
 RUN ffmpeg -version && yarn --version
 
-# Étape 5 : Télécharger et installer Rhubarb Lip Sync 1.14.0
+# Install Rhubarb binary
 RUN mkdir -p /rhubarb && \
     wget https://github.com/DanielSWolf/rhubarb-lip-sync/releases/download/v1.14.0/Rhubarb-Lip-Sync-1.14.0-Linux.zip -O rhubarb.zip && \
     unzip rhubarb.zip -d /rhubarb && \
@@ -28,32 +28,23 @@ RUN mkdir -p /rhubarb && \
     chmod +x /usr/local/bin/rhubarb && \
     rm -rf rhubarb.zip /rhubarb
 
-# 🔍 Vérification présence de Rhubarb (optionnel mais utile en dev)
-RUN ls -l /usr/local/bin/rhubarb
+# Copy Rhubarb's required res folder manually from local files
+COPY bin/res /usr/local/bin/res
 
-# Étape 6 : Répertoire de travail
+# Set working directory
 WORKDIR /app
 
-# Étape 7 : Créer le dossier audio (prévention)
+# Create audios directory
 RUN mkdir -p /app/audios
 
-# Étape 7 bis : Télécharger les ressources PocketSphinx pour Rhubarb
-RUN wget https://github.com/DanielSWolf/rhubarb-lip-sync/releases/download/v1.14.0/res.zip -O res.zip && \
-    unzip res.zip -d /usr/local/bin/res && \
-    rm res.zip
-
-    
-# Étape 8 : Copier les fichiers
+# Copy project files
 COPY . .
 
-# Étape 9 : Installer les dépendances
+# Install Node.js dependencies
 RUN yarn install --frozen-lockfile
 
-# Étape 10 : Définir l'environnement
-ENV NODE_ENV=production
-
-# Étape 11 : Exposer le port
+# Expose port
 EXPOSE 3000
 
-# Étape 12 : Démarrage de l’application
+# Run the app
 CMD ["node", "index.js"]
