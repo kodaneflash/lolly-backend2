@@ -16,15 +16,16 @@ import {
 dotenv.config();
 
 const app = express();
-const port = process.env.PORT || 3000;
-
-// Middleware CORS autorisant toutes les origines (pour EB et tests)
-// Middleware CORS autorisant toutes les origines (à sécuriser ensuite)
+// Ajoute ça immédiatement après app = express();
 app.use(cors({
-  origin: ["https://neemba-frontend.vercel.app"],
+  origin: "https://neemba-frontend.vercel.app",
   methods: ["GET", "POST"],
   credentials: true
 }));
+
+const port = process.env.PORT || 3000;
+
+
 
 app.use(express.json());
 
@@ -52,27 +53,39 @@ app.post("/chat", async (req, res) => {
     const processedMessages = await Promise.all(
       messages.map(async (msg, i) => {
         const id = `${Date.now()}_${i}`;
-        const mp3 = `./audios/message_${id}.mp3`;
-        const json = `./audios/message_${id}.json`;
-
+        const mp3Path = `./audios/message_${id}.mp3`;
+        const jsonPath = `./audios/message_${id}.json`;
+    
         try {
-          await generateSpeechWithStreaming(msg.text, mp3);
+          console.log(`🎤 Generating speech for message ${i}...`);
+          await generateSpeechWithStreaming(msg.text, mp3Path);
+    
+          console.log(`👄 Starting lipsync for message ${i}...`);
           await lipSyncMessage(id);
-
-          const audioBase64 = await audioFileToBase64(mp3); // Read the audio file as base64
-          const lipsyncData = await readJsonTranscript(json);
-
+    
+          console.log(`📤 Converting audio to base64...`);
+          const audioBase64 = await audioFileToBase64(mp3Path);
+    
+          console.log(`📖 Reading lipsync JSON...`);
+          const lipsyncData = await readJsonTranscript(jsonPath);
+    
           return {
             ...msg,
             audio: audioBase64,
             lipsync: lipsyncData,
           };
         } catch (err) {
-          console.error("❌ Audio processing failed:", err); // Improved error logging
-          return { ...msg, audio: null, lipsync: null };
+          console.error(`❌ Audio/lipsync processing failed for message ${i}:`, err.message);
+          return {
+            ...msg,
+            audio: null,
+            lipsync: null,
+            error: err.message || "Unknown error"
+          };
         }
       })
     );
+    
 
     res.status(200).json({ messages: processedMessages });
   } catch (error) {
