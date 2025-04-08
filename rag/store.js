@@ -4,7 +4,7 @@ import { OpenAIEmbeddings } from "langchain/embeddings/openai";
 
 let vectorStore = null;
 
-export const getVectorStore = async (): Promise<MemoryVectorStore> => {
+export const getVectorStore = async () => {
   if (vectorStore) return vectorStore;
 
   const openAIApiKey = process.env.OPENAI_API_KEY;
