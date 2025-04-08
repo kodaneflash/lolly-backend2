@@ -37,6 +37,12 @@ WORKDIR /app
 # Étape 7 : Créer le dossier audio (prévention)
 RUN mkdir -p /app/audios
 
+# Étape 7 bis : Télécharger les ressources PocketSphinx pour Rhubarb
+RUN wget https://github.com/DanielSWolf/rhubarb-lip-sync/releases/download/v1.14.0/res.zip -O res.zip && \
+    unzip res.zip -d /usr/local/bin/res && \
+    rm res.zip
+
+    
 # Étape 8 : Copier les fichiers
 COPY . .
 
