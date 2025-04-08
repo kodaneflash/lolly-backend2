@@ -1,7 +1,7 @@
-# Base Node.js image
+# Étape 1 : Image de base
 FROM node:18-slim
 
-# Install required dependencies
+# Étape 2 : Installation des dépendances système
 RUN apt-get update && apt-get install -y \
   curl \
   gnupg \
@@ -14,13 +14,13 @@ RUN apt-get update && apt-get install -y \
   && apt-get update && apt-get install -y yarn \
   && rm -rf /var/lib/apt/lists/*
 
-# Set PATH explicitly
+# Étape 3 : PATH
 ENV PATH="/usr/bin:/usr/local/bin:${PATH}"
 
-# Verify installations
+# Étape 4 : Vérifications
 RUN ffmpeg -version && yarn --version
 
-# Install Rhubarb binary
+# Étape 5 : Installer Rhubarb
 RUN mkdir -p /rhubarb && \
     wget https://github.com/DanielSWolf/rhubarb-lip-sync/releases/download/v1.14.0/Rhubarb-Lip-Sync-1.14.0-Linux.zip -O rhubarb.zip && \
     unzip rhubarb.zip -d /rhubarb && \
@@ -28,23 +28,24 @@ RUN mkdir -p /rhubarb && \
     chmod +x /usr/local/bin/rhubarb && \
     rm -rf rhubarb.zip /rhubarb
 
-# Copy Rhubarb's required res folder manually from local files
+# ✅ Étape 6 : Copie manuelle des fichiers ressources
+# Assure-toi que ce dossier existe bien dans ton projet local
 COPY bin/res /usr/local/bin/res
 
-# Set working directory
+# Étape 7 : Répertoire de travail
 WORKDIR /app
 
-# Create audios directory
+# Étape 8 : Créer le dossier audios
 RUN mkdir -p /app/audios
 
-# Copy project files
+# Étape 9 : Copier le code source
 COPY . .
 
-# Install Node.js dependencies
+# Étape 10 : Installation des dépendances Node.js
 RUN yarn install --frozen-lockfile
 
-# Expose port
+# Étape 11 : Exposer le port utilisé
 EXPOSE 3000
 
-# Run the app
+# Étape 12 : Commande de lancement
 CMD ["node", "index.js"]
