@@ -13,86 +13,110 @@ import {
   lipSyncMessage,
   audioFileToBase64,
   readJsonTranscript,
+  ensureAudiosDirectory,
 } from "./lib/audioUtils.js";
 
 // Définir __dirname en ESM
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Charger .env
+// Charger les variables d’environnement
 dotenv.config();
 
+// Créer le dossier audios au démarrage
+const audiosPath = path.resolve(__dirname, "audios");
+const ensureAudiosDir = async () => {
+  try {
+    await fs.mkdir(audiosPath, { recursive: true });
+    console.log("📂 'audios/' directory is ready");
+  } catch (err) {
+    console.error("❌ Failed to create audios/ folder:", err);
+  }
+};
+await ensureAudiosDir();
+
+// Initialisation de l’app
 const app = express();
 const port = process.env.PORT || 8080;
 
-// 🔐 CORS
+// CORS autorisé pour frontend déployé et local
 app.use(cors({
   origin: ["https://neemba-frontend.vercel.app", "http://localhost:3000"],
   methods: ["GET", "POST"],
-  allowedHeaders: ["Content-Type"],
-  credentials: true
+  credentials: true,
 }));
 
 app.use(express.json());
 
-// 🔊 Dossier audios
-const audiosPath = path.resolve(__dirname, "audios");
-await fs.mkdir(audiosPath, { recursive: true });
+// 🎧 Sert les fichiers statiques
 app.use("/audios", express.static(audiosPath));
 
-// ✅ Healthcheck
-app.get("/", (_, res) => {
+// ➤ Healthcheck route
+app.get("/", (req, res) => {
   res.send("✅ Neemba backend is running.");
 });
 
-// 🧠 Endpoint principal POST /chat
-app.post("/chat", async (req, res) => {
-  const userMessage = req.body.message;
-  if (!userMessage) return res.status(400).json({ error: "Missing message." });
+// ➤ (Optionnel) GET /chat pour tester l’existence
+app.get("/chat", (req, res) => {
+  res.send("🟢 POST /chat endpoint is ready.");
+});
 
+// ➤ Route principale POST /chat
+app.post("/chat", async (req, res) => {
   try {
+    const userMessage = req.body.message;
+    if (!userMessage) {
+      return res.status(400).json({ error: "Missing message." });
+    }
+
+    console.log("🧠 Calling RAG...");
     const ragResponse = await answerWithRAG(userMessage);
     const messages = ragResponse.messages || [];
 
     const processedMessages = await Promise.all(
       messages.map(async (msg, i) => {
         const id = `${Date.now()}_${i}`;
-        const mp3 = path.join(audiosPath, `message_${id}.mp3`);
-        const json = path.join(audiosPath, `message_${id}.json`);
+        const mp3Path = path.join(audiosPath, `message_${id}.mp3`);
+        const jsonPath = path.join(audiosPath, `message_${id}.json`);
 
         try {
-          await generateSpeechWithStreaming(msg.text, mp3);
+          await generateSpeechWithStreaming(msg.text, mp3Path);
           await lipSyncMessage(id);
-          const audioBase64 = await audioFileToBase64(mp3);
-          const lipsyncData = await readJsonTranscript(json);
 
-          return { ...msg, audio: audioBase64, lipsync: lipsyncData };
+          const audioBase64 = await audioFileToBase64(mp3Path);
+          const lipsyncData = await readJsonTranscript(jsonPath);
+
+          return {
+            ...msg,
+            audio: audioBase64,
+            lipsync: lipsyncData,
+          };
         } catch (err) {
-          console.error("❌ Audio processing failed:", err.message);
+          console.error(`❌ Audio processing failed (msg ${i}):`, err.message);
           return { ...msg, audio: null, lipsync: null, error: err.message };
         }
       })
     );
 
-    res.json({ messages: processedMessages });
+    res.status(200).json({ messages: processedMessages });
   } catch (err) {
-    console.error("❌ Error in /chat:", err);
+    console.error("❌ Server-level error in /chat:", err);
     res.status(500).json({ error: "Internal server error", detail: err.message });
   }
 });
 
-// 🚀 Lancement + ingestion RAG
+// ➤ Démarrage du serveur après ingestion
 const startServer = async () => {
   try {
     console.log("⚙️ Ingesting documents...");
     await ingestDocuments();
-    console.log("📚 Ingestion done.");
+    console.log("📚 Documents ingested successfully.");
 
     app.listen(port, "0.0.0.0", () => {
-      console.log(`🚀 Listening on port ${port}`);
+      console.log(`🚀 Neemba API listening on port ${port}`);
     });
   } catch (err) {
-    console.error("❌ Startup error:", err);
+    console.error("❌ Fatal error on startup:", err);
     process.exit(1);
   }
 };
