@@ -2,6 +2,10 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import path from "path";
+import fs from "fs/promises";
+import { fileURLToPath } from "url";
+
 import { answerWithRAG } from "./rag/qa.js";
 import { ingestDocuments } from "./rag/ingest.js";
 import {
@@ -12,47 +16,52 @@ import {
   ensureAudiosDirectory,
 } from "./lib/audioUtils.js";
 
-import fs from "fs/promises";
-import path from "path";
+// Définir __dirname en ESM
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
+// Charger les variables d’environnement
 dotenv.config();
 
-// Crée le dossier /audios au démarrage s'il n'existe pas
+// Créer le dossier audios au démarrage
+const audiosPath = path.resolve(__dirname, "audios");
 const ensureAudiosDir = async () => {
-  const audiosPath = path.resolve("./audios");
   try {
     await fs.mkdir(audiosPath, { recursive: true });
-    console.log("📂 audios/ folder ready");
+    console.log("📂 'audios/' directory is ready");
   } catch (err) {
     console.error("❌ Failed to create audios/ folder:", err);
   }
 };
+await ensureAudiosDir();
 
-await ensureAudiosDir(); // Appelé juste après `dotenv.config()` par exemple
-
+// Initialisation de l’app
 const app = express();
-// Ajoute ça immédiatement après app = express();
+const port = process.env.PORT || 8080;
+
+// CORS autorisé pour frontend déployé et local
 app.use(cors({
-  origin: ["https://neemba-frontend.vercel.app", "http://localhost:3000"], // Allow both production and local development
+  origin: ["https://neemba-frontend.vercel.app", "http://localhost:3000"],
   methods: ["GET", "POST"],
-  credentials: true
+  credentials: true,
 }));
-
-const port = process.env.PORT || 3000;
-
-
 
 app.use(express.json());
 
-// Serve les fichiers audio statiquement
-app.use("/audios", express.static("audios"));
+// 🎧 Sert les fichiers statiques
+app.use("/audios", express.static(audiosPath));
 
-// Endpoint de test pour Elastic Beanstalk
+// ➤ Healthcheck route
 app.get("/", (req, res) => {
   res.send("✅ Neemba backend is running.");
 });
 
-// Endpoint principal
+// ➤ (Optionnel) GET /chat pour tester l’existence
+app.get("/chat", (req, res) => {
+  res.send("🟢 POST /chat endpoint is ready.");
+});
+
+// ➤ Route principale POST /chat
 app.post("/chat", async (req, res) => {
   try {
     const userMessage = req.body.message;
@@ -67,15 +76,15 @@ app.post("/chat", async (req, res) => {
     const processedMessages = await Promise.all(
       messages.map(async (msg, i) => {
         const id = `${Date.now()}_${i}`;
-        const mp3 = `./audios/message_${id}.mp3`;
-        const json = `./audios/message_${id}.json`;
+        const mp3Path = path.join(audiosPath, `message_${id}.mp3`);
+        const jsonPath = path.join(audiosPath, `message_${id}.json`);
 
         try {
-          await generateSpeechWithStreaming(msg.text, mp3);
+          await generateSpeechWithStreaming(msg.text, mp3Path);
           await lipSyncMessage(id);
 
-          const audioBase64 = await audioFileToBase64(mp3);
-          const lipsyncData = await readJsonTranscript(json);
+          const audioBase64 = await audioFileToBase64(mp3Path);
+          const lipsyncData = await readJsonTranscript(jsonPath);
 
           return {
             ...msg,
@@ -96,8 +105,7 @@ app.post("/chat", async (req, res) => {
   }
 });
 
-
-// Démarrage de l'API avec ingestion de documents
+// ➤ Démarrage du serveur après ingestion
 const startServer = async () => {
   try {
     console.log("⚙️ Ingesting documents...");
