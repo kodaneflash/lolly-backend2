@@ -12,8 +12,23 @@ import {
   ensureAudiosDirectory,
 } from "./lib/audioUtils.js";
 
+import fs from "fs/promises";
+import path from "path";
 
 dotenv.config();
+
+// Crée le dossier /audios au démarrage s'il n'existe pas
+const ensureAudiosDir = async () => {
+  const audiosPath = path.resolve("./audios");
+  try {
+    await fs.mkdir(audiosPath, { recursive: true });
+    console.log("📂 audios/ folder ready");
+  } catch (err) {
+    console.error("❌ Failed to create audios/ folder:", err);
+  }
+};
+
+await ensureAudiosDir(); // Appelé juste après `dotenv.config()` par exemple
 
 const app = express();
 // Ajoute ça immédiatement après app = express();

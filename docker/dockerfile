@@ -36,6 +36,8 @@ RUN mkdir -p /rhubarb && \
 # Étape 8 : Répertoire de travail
 WORKDIR /app
 
+RUN mkdir -p /app/audios
+
 # Étape 9 : Copier les fichiers
 COPY . .
 
@@ -50,3 +52,4 @@ EXPOSE 3000
 
 # Étape 13 : Commande de démarrage
 CMD ["node", "index.js"]
+
