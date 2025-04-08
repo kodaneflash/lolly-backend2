@@ -1,9 +1,8 @@
 # Étape 1 : Base Node.js
 FROM node:18-slim
 
-# Étape 2 : Installer ffmpeg et curl pour Rhubarb
+# Étape 2 : Installer curl et unzip
 RUN apt-get update && apt-get install -y \
-  ffmpeg \
   curl \
   unzip \
   && rm -rf /var/lib/apt/lists/*
@@ -14,9 +13,6 @@ RUN mkdir -p /rhubarb && \
     unzip rhubarb.zip -d /rhubarb && \
     mv /rhubarb/rhubarb /usr/local/bin/rhubarb && \
     chmod +x /usr/local/bin/rhubarb
-
-# Ensure ffmpeg is in PATH
-ENV PATH="/usr/local/bin:${PATH}"
 
 # Étape 4 : Créer un répertoire de travail
 WORKDIR /app
