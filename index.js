@@ -12,18 +12,30 @@ import {
   ensureAudiosDirectory,
 } from "./lib/audioUtils.js";
 
-// Init
 dotenv.config();
-await ingestDocuments();
+await ingestDocuments(); // Ingestion initiale au démarrage
 
 const app = express();
-app.use(cors());
+
+// ✅ CORS: configuration propre pour localhost + vercel frontend
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://neemba-frontend.vercel.app"
+];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error("Not allowed by CORS"));
+  },
+  credentials: true
+}));
+
 app.use(express.json());
+app.use("/audios", express.static("audios")); // pour accéder aux fichiers générés
 
-// Serve static audio files
-app.use("/audios", express.static("audios"));
-
-// Chat route
+// ✅ Endpoint principal
 app.post("/chat", async (req, res) => {
   await ensureAudiosDirectory();
   const userMessage = req.body.message;
@@ -63,7 +75,7 @@ app.post("/chat", async (req, res) => {
   }
 });
 
-// ✅ Start local server only when not on Vercel
+// ✅ Lancer le serveur seulement en local
 if (process.env.NODE_ENV !== "production") {
   const port = process.env.PORT || 3000;
   app.listen(port, () => {
@@ -71,4 +83,5 @@ if (process.env.NODE_ENV !== "production") {
   });
 }
 
+// ✅ Exporter pour Vercel
 export default app;
