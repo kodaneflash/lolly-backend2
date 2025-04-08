@@ -1,4 +1,9 @@
 // index.js
+
+import { execSync } from "child_process";
+console.log("📍 Rhubarb binary check:", execSync("which rhubarb").toString());
+
+
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";

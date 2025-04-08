@@ -1,31 +1,26 @@
 # Étape 1 : Image de base avec Node.js 18
 FROM node:18-slim
 
-# Étape 2 : Installer curl, gnupg et dash (pour shell)
+# Étape 2 : Installer curl, gnupg, dash (shell), ffmpeg, unzip, wget, yarn
 RUN apt-get update && apt-get install -y \
   curl \
   gnupg \
-  dash
-
-# Étape 3 : Installer Yarn
-RUN curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - && \
-  echo "deb https://dl.yarnpkg.com/debian stable main" > /etc/apt/sources.list.d/yarn.list
-
-# Étape 4 : Installer ffmpeg, unzip, wget, yarn
-RUN apt-get update && apt-get install -y \
+  dash \
   ffmpeg \
   unzip \
   wget \
-  yarn && \
-  rm -rf /var/lib/apt/lists/*
+  && curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - \
+  && echo "deb https://dl.yarnpkg.com/debian stable main" > /etc/apt/sources.list.d/yarn.list \
+  && apt-get update && apt-get install -y yarn \
+  && rm -rf /var/lib/apt/lists/*
 
-# Étape 5 : Ajouter ffmpeg et yarn au PATH
-ENV PATH="/usr/bin:${PATH}"
+# Étape 3 : Ajouter ffmpeg et yarn au PATH (précaution)
+ENV PATH="/usr/bin:/usr/local/bin:${PATH}"
 
-# Étape 6 : Vérification des versions
+# Étape 4 : Vérification des versions
 RUN ffmpeg -version && yarn --version
 
-# Étape 7 : Télécharger et installer Rhubarb Lip Sync 1.14.0
+# Étape 5 : Télécharger et installer Rhubarb Lip Sync 1.14.0
 RUN mkdir -p /rhubarb && \
     wget https://github.com/DanielSWolf/rhubarb-lip-sync/releases/download/v1.14.0/Rhubarb-Lip-Sync-1.14.0-Linux.zip -O rhubarb.zip && \
     unzip rhubarb.zip -d /rhubarb && \
@@ -33,23 +28,26 @@ RUN mkdir -p /rhubarb && \
     chmod +x /usr/local/bin/rhubarb && \
     rm -rf rhubarb.zip /rhubarb
 
-# Étape 8 : Répertoire de travail
+# 🔍 Vérification présence de Rhubarb (optionnel mais utile en dev)
+RUN ls -l /usr/local/bin/rhubarb
+
+# Étape 6 : Répertoire de travail
 WORKDIR /app
 
+# Étape 7 : Créer le dossier audio (prévention)
 RUN mkdir -p /app/audios
 
-# Étape 9 : Copier les fichiers
+# Étape 8 : Copier les fichiers
 COPY . .
 
-# Étape 10 : Installer les dépendances
+# Étape 9 : Installer les dépendances
 RUN yarn install --frozen-lockfile
 
-# Étape 11 : Définir l'environnement
+# Étape 10 : Définir l'environnement
 ENV NODE_ENV=production
 
-# Étape 12 : Exposer le port
+# Étape 11 : Exposer le port
 EXPOSE 3000
 
-# Étape 13 : Commande de démarrage
+# Étape 12 : Démarrage de l’application
 CMD ["node", "index.js"]
-
