@@ -1,8 +1,0 @@
-[phases.setup]
-nixPkgs = ["ffmpeg", "yarn", "nodejs-18_x"]
-
-[phases.build]
-runtime = "nodejs-18" # Explicitly enforce Node.js 18.x
-
-[phases.start]
-runtime = "nodejs-18" # Ensure Node.js 18.x is used during runtime
