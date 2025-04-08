@@ -40,59 +40,47 @@ app.get("/", (req, res) => {
 // Endpoint principal
 app.post("/chat", async (req, res) => {
   try {
-    await ensureAudiosDirectory();
-
     const userMessage = req.body.message;
     if (!userMessage) {
       return res.status(400).json({ error: "Missing message." });
     }
 
+    console.log("🧠 Calling RAG...");
     const ragResponse = await answerWithRAG(userMessage);
-    const messages = ragResponse.messages;
+    const messages = ragResponse.messages || [];
 
     const processedMessages = await Promise.all(
       messages.map(async (msg, i) => {
         const id = `${Date.now()}_${i}`;
-        const mp3Path = `./audios/message_${id}.mp3`;
-        const jsonPath = `./audios/message_${id}.json`;
-    
+        const mp3 = `./audios/message_${id}.mp3`;
+        const json = `./audios/message_${id}.json`;
+
         try {
-          console.log(`🎤 Generating speech for message ${i}...`);
-          await generateSpeechWithStreaming(msg.text, mp3Path);
-    
-          console.log(`👄 Starting lipsync for message ${i}...`);
+          await generateSpeechWithStreaming(msg.text, mp3);
           await lipSyncMessage(id);
-    
-          console.log(`📤 Converting audio to base64...`);
-          const audioBase64 = await audioFileToBase64(mp3Path);
-    
-          console.log(`📖 Reading lipsync JSON...`);
-          const lipsyncData = await readJsonTranscript(jsonPath);
-    
+
+          const audioBase64 = await audioFileToBase64(mp3);
+          const lipsyncData = await readJsonTranscript(json);
+
           return {
             ...msg,
             audio: audioBase64,
             lipsync: lipsyncData,
           };
         } catch (err) {
-          console.error(`❌ Audio/lipsync processing failed for message ${i}:`, err.message);
-          return {
-            ...msg,
-            audio: null,
-            lipsync: null,
-            error: err.message || "Unknown error"
-          };
+          console.error(`❌ Audio processing failed (msg ${i}):`, err.message);
+          return { ...msg, audio: null, lipsync: null, error: err.message };
         }
       })
     );
-    
 
     res.status(200).json({ messages: processedMessages });
-  } catch (error) {
-    console.error("❌ Chat endpoint error:", error);
-    res.status(500).json({ error: "Internal server error" });
+  } catch (err) {
+    console.error("❌ Server-level error in /chat:", err);
+    res.status(500).json({ error: "Internal server error", detail: err.message });
   }
 });
+
 
 // Démarrage de l'API avec ingestion de documents
 const startServer = async () => {
