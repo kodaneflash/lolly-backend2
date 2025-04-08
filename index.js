@@ -13,7 +13,6 @@ import {
   lipSyncMessage,
   audioFileToBase64,
   readJsonTranscript,
-  ensureAudiosDirectory,
 } from "./lib/audioUtils.js";
 
 // Définir __dirname en ESM
@@ -23,45 +22,42 @@ const __dirname = path.dirname(__filename);
 // Charger les variables d’environnement
 dotenv.config();
 
-// Créer le dossier audios au démarrage
+// Créer le dossier audios
 const audiosPath = path.resolve(__dirname, "audios");
-const ensureAudiosDir = async () => {
-  try {
-    await fs.mkdir(audiosPath, { recursive: true });
-    console.log("📂 'audios/' directory is ready");
-  } catch (err) {
-    console.error("❌ Failed to create audios/ folder:", err);
-  }
-};
-await ensureAudiosDir();
+await fs.mkdir(audiosPath, { recursive: true });
+console.log("📂 'audios/' directory is ready");
 
-// Initialisation de l’app
+// Initialisation Express
 const app = express();
 const port = process.env.PORT || 8080;
 
-// CORS autorisé pour frontend déployé et local
+// ✅ CORS : accepte appels de Vercel + localhost
 app.use(cors({
-  origin: ["https://neemba-frontend.vercel.app", "http://localhost:3000"],
-  methods: ["GET", "POST"],
-  credentials: true,
+  origin: [
+    "https://neemba-frontend.vercel.app",
+    "http://localhost:3000"
+  ],
+  methods: ["GET", "POST", "OPTIONS"],
+  allowedHeaders: ["Content-Type"],
 }));
 
+// Middleware JSON
 app.use(express.json());
 
-// 🎧 Sert les fichiers statiques
+// ✅ Sert les fichiers audio statiquement
 app.use("/audios", express.static(audiosPath));
 
-// ➤ Healthcheck route
+// ➤ Health check
 app.get("/", (req, res) => {
   res.send("✅ Neemba backend is running.");
 });
 
-// ➤ (Optionnel) GET /chat pour tester l’existence
+// ➤ Test GET /chat (debug)
 app.get("/chat", (req, res) => {
   res.send("🟢 POST /chat endpoint is ready.");
 });
 
-// ➤ Route principale POST /chat
+// ➤ POST /chat — endpoint principal
 app.post("/chat", async (req, res) => {
   try {
     const userMessage = req.body.message;
@@ -105,7 +101,7 @@ app.post("/chat", async (req, res) => {
   }
 });
 
-// ➤ Démarrage du serveur après ingestion
+// ➤ Démarrage serveur après ingestion
 const startServer = async () => {
   try {
     console.log("⚙️ Ingesting documents...");
