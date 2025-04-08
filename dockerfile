@@ -19,6 +19,7 @@ WORKDIR /app
 
 # Étape 5 : Copier tous les fichiers dans l’image
 COPY . .
+COPY nixpacks.toml .
 
 # Étape 6 : Installer les dépendances
 RUN npm install
