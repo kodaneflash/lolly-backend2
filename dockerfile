@@ -1,18 +1,21 @@
 # Étape 1 : Base Node.js
 FROM node:18-slim
 
-# Étape 2 : Installer ffmpeg, curl et unzip
+# Étape 2 : Installer ffmpeg, curl, unzip et yarn
 RUN apt-get update && apt-get install -y \
   ffmpeg \
   curl \
   unzip \
-  && rm -rf /var/lib/apt/lists/*
+  && curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - && \
+  echo "deb https://dl.yarnpkg.com/debian/ stable main" | tee /etc/apt/sources.list.d/yarn.list && \
+  apt-get update && apt-get install -y yarn && \
+  rm -rf /var/lib/apt/lists/*
 
-# Ensure ffmpeg is in PATH
+# Ensure ffmpeg and yarn are in PATH
 ENV PATH="/usr/bin:${PATH}"
 
-# Verify ffmpeg installation
-RUN ffmpeg -version
+# Verify ffmpeg and yarn installation
+RUN ffmpeg -version && yarn --version
 
 # Étape 3 : Télécharger et installer Rhubarb Lip Sync
 RUN mkdir -p /rhubarb && \
@@ -28,7 +31,7 @@ WORKDIR /app
 COPY . .
 
 # Étape 6 : Installer les dépendances
-RUN npm install
+RUN yarn install --frozen-lockfile
 
 # Étape 7 : Définir l’environnement
 ENV NODE_ENV=production
