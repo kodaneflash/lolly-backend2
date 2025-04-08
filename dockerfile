@@ -11,6 +11,9 @@ RUN apt-get update && apt-get install -y \
 # Ensure ffmpeg is in PATH
 ENV PATH="/usr/bin:${PATH}"
 
+# Verify ffmpeg installation
+RUN ffmpeg -version
+
 # Étape 3 : Télécharger et installer Rhubarb Lip Sync
 RUN mkdir -p /rhubarb && \
     curl -L https://github.com/DanielSWolf/rhubarb-lip-sync/releases/download/v1.10.0/rhubarb-1.10.0-linux.zip -o rhubarb.zip && \
