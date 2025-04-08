@@ -1,5 +1,5 @@
 {
-  "name": "neemba-backend",
+  "name": "r3f-virtual-girlfriend-backend",
   "version": "1.0.0",
   "description": "Express backend with ffmpeg for AWS Elastic Beanstalk",
   "main": "index.js",
@@ -8,7 +8,7 @@
     "start": "node index.js",
     "dev": "nodemon index.js --ext js"
   },
-  "author": "Wawa SENSEI <contact@wawasensei.dev>",
+  "author": "leevea <contact@leevea.fr>",
   "dependencies": {
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
