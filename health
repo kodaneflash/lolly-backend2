@@ -1,0 +1,8 @@
+import { exec } from "child_process";
+
+app.get("/health", (req, res) => {
+  exec("which ffmpeg && ffmpeg -version && which rhubarb && rhubarb --version", (err, stdout, stderr) => {
+    if (err) return res.status(500).send(stderr || err.message);
+    res.send(stdout);
+  });
+});
