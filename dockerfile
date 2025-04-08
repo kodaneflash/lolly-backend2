@@ -15,6 +15,9 @@ RUN mkdir -p /rhubarb && \
     mv /rhubarb/rhubarb /usr/local/bin/rhubarb && \
     chmod +x /usr/local/bin/rhubarb
 
+# Ensure ffmpeg is in PATH
+ENV PATH="/usr/local/bin:${PATH}"
+
 # Étape 4 : Créer un répertoire de travail
 WORKDIR /app
 

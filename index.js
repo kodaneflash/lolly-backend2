@@ -53,13 +53,16 @@ app.post("/chat", async (req, res) => {
           await generateSpeechWithStreaming(msg.text, mp3);
           await lipSyncMessage(id);
 
+          const audioBase64 = await audioFileToBase64(mp3); // Read the audio file as base64
+          const lipsyncData = await readJsonTranscript(json);
+
           return {
             ...msg,
-            audio: await audioFileToBase64(mp3),
-            lipsync: await readJsonTranscript(json),
+            audio: audioBase64,
+            lipsync: lipsyncData,
           };
         } catch (err) {
-          console.error("❌ Audio processing failed:", err.message);
+          console.error("❌ Audio processing failed:", err); // Improved error logging
           return { ...msg, audio: null, lipsync: null };
         }
       })
