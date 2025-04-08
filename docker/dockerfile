@@ -1,11 +1,11 @@
 # Étape 1 : Image de base avec Node.js 18
 FROM node:18-slim
 
-# Étape 2 : Installer ffmpeg, curl, unzip et yarn
+# Étape 2 : Installer ffmpeg, unzip, wget, gnupg et yarn
 RUN apt-get update && apt-get install -y \
   ffmpeg \
-  curl \
   unzip \
+  wget \
   gnupg \
   && curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - \
   && echo "deb https://dl.yarnpkg.com/debian stable main" > /etc/apt/sources.list.d/yarn.list \
@@ -18,12 +18,13 @@ ENV PATH="/usr/bin:${PATH}"
 # Étape 4 : Vérification des versions
 RUN ffmpeg -version && yarn --version
 
-# Étape 5 : Télécharger et installer Rhubarb Lip Sync
+# Étape 5 : Télécharger et installer Rhubarb Lip Sync 1.14.0
 RUN mkdir -p /rhubarb && \
-    curl -L https://github.com/DanielSWolf/rhubarb-lip-sync/releases/download/v1.10.0/rhubarb-1.10.0-linux.zip -o rhubarb.zip && \
+    wget https://github.com/DanielSWolf/rhubarb-lip-sync/releases/download/v1.14.0/Rhubarb-Lip-Sync-1.14.0-Linux.zip -O rhubarb.zip && \
     unzip rhubarb.zip -d /rhubarb && \
-    mv /rhubarb/rhubarb /usr/local/bin/rhubarb && \
-    chmod +x /usr/local/bin/rhubarb
+    mv /rhubarb/Rhubarb-Lip-Sync-1.14.0-Linux/rhubarb /usr/local/bin/rhubarb && \
+    chmod +x /usr/local/bin/rhubarb && \
+    rm -rf rhubarb.zip /rhubarb
 
 # Étape 6 : Répertoire de travail
 WORKDIR /app
