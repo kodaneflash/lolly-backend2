@@ -2,7 +2,7 @@
 import { MemoryVectorStore } from "langchain/vectorstores/memory";
 import { OpenAIEmbeddings } from "langchain/embeddings/openai";
 
-let vectorStore: MemoryVectorStore | null = null;
+let vectorStore = null;
 
 export const getVectorStore = async (): Promise<MemoryVectorStore> => {
   if (vectorStore) return vectorStore;
