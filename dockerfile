@@ -1,11 +1,15 @@
 # Étape 1 : Base Node.js
 FROM node:18-slim
 
-# Étape 2 : Installer curl et unzip
+# Étape 2 : Installer ffmpeg, curl et unzip
 RUN apt-get update && apt-get install -y \
+  ffmpeg \
   curl \
   unzip \
   && rm -rf /var/lib/apt/lists/*
+
+# Ensure ffmpeg is in PATH
+ENV PATH="/usr/bin:${PATH}"
 
 # Étape 3 : Télécharger et installer Rhubarb Lip Sync
 RUN mkdir -p /rhubarb && \
