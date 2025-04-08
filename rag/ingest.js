@@ -1,7 +1,7 @@
 // rag/ingest.js
 import fs from "fs";
 import path from "path";
-import vectorStore from "./store.js";
+import { getVectorStore } from "./store.js";
 
 let hasIndexed = false;
 
@@ -33,7 +33,7 @@ export async function ingestDocuments(directory = "rag_project/docs") {
         metadata: { source: name },
       }));
 
-      await vectorStore.addDocuments(docs);
+      await getVectorStore().then(vectorStore => vectorStore.addDocuments(docs));
       console.log(`✅ "${name}" indexé (${chunks.length} chunk${chunks.length > 1 ? "s" : ""})`);
     }
 

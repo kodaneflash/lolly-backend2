@@ -1,6 +1,6 @@
 // rag/qa.js
 import { ingestDocuments } from "./ingest.js";
-import vectorStore from "./store.js";
+import { getVectorStore } from "./store.js";
 import OpenAI from "openai";
 import axios from "axios";
 
@@ -43,7 +43,7 @@ export async function answerWithRAG(userMessage, maxContextTokens = 1000) {
     userMessage = refineQuestionForNeemba(userMessage);
   }
 
-  const relevantDocs = await vectorStore.similaritySearch(userMessage, 1);
+  const relevantDocs = await getVectorStore().then(vectorStore => vectorStore.similaritySearch(userMessage, 1));
 
   if (relevantDocs.length === 0) {
     return {
