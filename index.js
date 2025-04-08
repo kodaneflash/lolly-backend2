@@ -24,9 +24,15 @@ const execFileAsync = promisify(execFile);
 // Init
 dotenv.config();
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 3000; // Use environment port or 3000 as default
+const frontendURL = process.env.NODE_ENV === 'production' ? 'https://neemba-frontend.vercel.app' : 'http://localhost:3000';
+
 app.use(express.json());
-app.use(cors());
+app.use(cors({
+  origin: [frontendURL, 'http://localhost:3000'], // Allow both Vercel frontend and localhost
+  methods: ['GET', 'POST', 'OPTIONS'], // Specify allowed methods
+  credentials: true, // Allow cookies and authorization headers
+}));
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "-" });
 const elevenLabsApiKey = process.env.ELEVEN_LABS_API_KEY;
