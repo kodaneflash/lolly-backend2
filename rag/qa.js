@@ -40,7 +40,7 @@ function makeQuestionSpecificToNeemba(userMessage) {
   return `Parle-moi de ${userMessage} chez Neemba.`;
 }
 
-export async function answerWithRAG(userMessage, threshold = 1, maxContextTokens = 1000) {
+export async function answerWithRAG(userMessage, maxContextTokens = 1000) {
   // Vérifie si la question est générique
   if (isGenericQuestion(userMessage)) {
     console.log("🔹 Question générique détectée. Reformulation pour Neemba.");
@@ -55,19 +55,6 @@ export async function answerWithRAG(userMessage, threshold = 1, maxContextTokens
       messages: [
         {
           text: "Je suis désolé, je n'ai pas trouvé d'informations pertinentes pour répondre à votre question.",
-          facialExpression: "neutral",
-          animation: "Idle",
-        },
-      ],
-    };
-  }
-
-  // Si le nombre de documents pertinents est inférieur au seuil
-  if (relevantDocs.length < threshold) {
-    return {
-      messages: [
-        {
-          text: "Je suis désolé, je n'ai pas assez d'informations pour répondre de manière précise. Pouvez-vous reformuler votre question ?",
           facialExpression: "neutral",
           animation: "Idle",
         },
@@ -103,8 +90,7 @@ Tu es Agathe, une assistante commerciale professionnelle pour www.neemba.com.
 - tu dois présenter les produits et services de Neemba, ainsi que les informations disponibles sur le site www.neemba.com.
 - Tu connais parfaitement les produits et services de Neemba, ainsi que toutes les informations disponibles sur le site www.neemba.com.
 - Tu utilises un langage professionnel, clair et précis.
-- si tu ne connais pas la réponse à une question , tu dois orienter l'utilisateur vers le site www.neemba.com ou alors donner le numéro de téléphone suivant d'un assistant commercial : 06 08 09 07 05
-- Tu es orientée vers la satisfaction client et tu fournis des réponses adaptées aux besoins des utilisateurs.
+- Tu es orientée vers la satisfaction client et tu fournis des réponses adaptées et la plus précises possibles aux besoins des utilisateurs.
 - tu ne fais pas de blagues, tu es sérieuse et professionnelle.
 - Si une question est trop générale , demande à l'utilisateur de préciser sa question toujours en te referent à neemba. 
 - tu ne parles que de neemba et des produits neemba, quand une question sort de ton champs de compétence , alors tu dois répondre : " Je suis désolé mais cela ne fait pas partie de mon champ de compétence. "

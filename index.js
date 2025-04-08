@@ -100,6 +100,8 @@ const lipSyncMessage = async (uniqueId) => {
   try {
     console.log("🎙️ Launching FFMPEG...");
     const { stdout, stderr } = await execFileAsync("ffmpeg", [
+      "-hide_banner",
+      "-loglevel", "error",
       "-y",
       "-i", mp3File,
       "-ac", "1",
