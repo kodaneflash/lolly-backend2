@@ -30,7 +30,8 @@ RUN mkdir -p /rhubarb && \
 
 # ✅ Étape 6 : Copie manuelle des fichiers ressources
 # Assure-toi que ce dossier existe bien dans ton projet local
-COPY bin/res /usr/local/bin/res
+COPY ./bin/res /usr/local/bin/res
+
 
 # Étape 7 : Répertoire de travail
 WORKDIR /app
