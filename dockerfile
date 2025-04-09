@@ -1,5 +1,6 @@
-# Étape 1 : Image de base
-FROM node:18-bullseye
+# Étape 1 : Image de base avec Node.js 18
+FROM node@sha256:39095e997ff4399e1b07c147ccb432f47bd9e67c639d5fdf41af4a796c50ecf7
+
 
 # Étape 2 : Dépendances système (séparées pour éviter les timeouts)
 RUN apt-get update && apt-get install -y curl gnupg
