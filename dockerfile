@@ -1,5 +1,6 @@
 # Étape 1 : Image de base avec Node.js 18
-FROM node:18-slim
+FROM node@sha256:39095e997ff4399e1b07c147ccb432f47bd9e67c639d5fdf41af4a796c50ecf7
+
 
 # Étape 2 : Installation des dépendances système
 RUN apt-get update && apt-get install -y \
