@@ -52,5 +52,5 @@ EXPOSE 3000
 RUN which rhubarb && rhubarb --version || echo "⚠️ Rhubarb not found"
 RUN which ffmpeg && ffmpeg -version || echo "⚠️ FFmpeg not found"
 
-# Étape 13 : Commande de démarrage
+# Étape 13 : Commande de démarrages
 CMD ["node", "index.js"]
