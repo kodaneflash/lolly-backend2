@@ -3,7 +3,7 @@ FROM node@sha256:39095e997ff4399e1b07c147ccb432f47bd9e67c639d5fdf41af4a796c50ecf
 
 
 # Étape 2 : Dépendances système (séparées pour éviter les timeouts)
-RUN apt-get update && apt-get install -y curl gnupg
+#RUN apt-get update && apt-get install -y curl gnupg
 RUN apt-get install -y dash ffmpeg unzip wget
 
 # Étape 3 : Yarn (séparé aussi)
