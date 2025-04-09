@@ -28,10 +28,11 @@ RUN mkdir -p /rhubarb && \
     chmod +x /usr/local/bin/rhubarb && \
     rm -rf rhubarb.zip /rhubarb
 
-# ✅ Étape 6 : Copie manuelle des fichiers ressources
-# Assure-toi que ce dossier existe bien dans ton projet local
-COPY ./bin/res /usr/local/bin/res
-
+# ✅ Étape 6 : Crée un dossier temporaire pour copier les fichiers Rhubarb `res` dynamiquement
+# Cela évite les erreurs si le dossier n'existe pas dans Git (ex: Railway)
+WORKDIR /tmp
+COPY ./bin/res ./res
+RUN mkdir -p /usr/local/bin/res && cp -r ./res/* /usr/local/bin/res && rm -rf ./res
 
 # Étape 7 : Répertoire de travail
 WORKDIR /app
