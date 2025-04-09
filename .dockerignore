@@ -3,3 +3,10 @@ node_modules
 audios
 bin
 .audios/*
+
+node_modules/
+.git/
+.idea/
+.vscode/
+Dockerfile
+docker-compose.yml
