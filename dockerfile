@@ -1,44 +1,50 @@
-# Base image with Node.js 18
+# Étape 1 : Image de base avec Node.js 18
 FROM node:18-slim
 
-# Install ffmpeg, curl, unzip, and yarn
+# Étape 2 : Installation des dépendances système
 RUN apt-get update && apt-get install -y \
   ffmpeg \
   curl \
   unzip \
   gnupg \
+  wget \
   && curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - \
   && echo "deb https://dl.yarnpkg.com/debian stable main" > /etc/apt/sources.list.d/yarn.list \
   && apt-get update && apt-get install -y yarn \
   && rm -rf /var/lib/apt/lists/*
 
-# Add ffmpeg and yarn to PATH
-ENV PATH="/usr/bin:${PATH}"
+# Étape 3 : PATH propre
+ENV PATH="/usr/bin:/usr/local/bin:${PATH}"
 
-# Verify ffmpeg and yarn installation
+# Étape 4 : Vérification des outils
 RUN ffmpeg -version && yarn --version
 
-# Install Rhubarb Lip Sync
+# Étape 5 : Installer Rhubarb Lip Sync v1.14.0
 RUN mkdir -p /rhubarb && \
-    curl -L https://github.com/DanielSWolf/rhubarb-lip-sync/releases/download/v1.10.0/rhubarb-1.10.0-linux.zip -o rhubarb.zip && \
+    wget https://github.com/DanielSWolf/rhubarb-lip-sync/releases/download/v1.14.0/Rhubarb-Lip-Sync-1.14.0-Linux.zip -O rhubarb.zip && \
     unzip rhubarb.zip -d /rhubarb && \
-    mv /rhubarb/rhubarb /usr/local/bin/rhubarb && \
-    chmod +x /usr/local/bin/rhubarb
+    mv /rhubarb/Rhubarb-Lip-Sync-1.14.0-Linux/rhubarb /usr/local/bin/rhubarb && \
+    chmod +x /usr/local/bin/rhubarb && \
+    rm -rf rhubarb.zip /rhubarb
 
-# Set working directory
+# Étape 6 : Copier les fichiers `res` nécessaires à Rhubarb
+# ✅ Vérifie que le dossier local `bin/res` existe et contient `sphinx/`
+COPY bin/res /usr/local/bin/res
+
+# Étape 7 : Définir le dossier de travail
 WORKDIR /app
 
-# Copy all files into the container
+# Étape 8 : Copier le projet
 COPY . .
 
-# Install dependencies
+# Étape 9 : Installer les dépendances Node.js
 RUN yarn install --frozen-lockfile
 
-# Set environment to production
+# Étape 10 : Définir la variable d'environnement
 ENV NODE_ENV=production
 
-# Expose port 8080
+# Étape 11 : Exposer le port
 EXPOSE 8080
 
-# Start the application
+# Étape 12 : Commande de démarrage
 CMD ["node", "index.js"]
