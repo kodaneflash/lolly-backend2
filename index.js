@@ -1,14 +1,10 @@
 // index.js
-
-import { execSync } from "child_process";
-console.log("📍 Rhubarb binary check:", execSync("which rhubarb").toString());
-
-
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import path from "path";
 import fs from "fs/promises";
+import { execSync } from "child_process";
 import { fileURLToPath } from "url";
 
 import { answerWithRAG } from "./rag/qa.js";
@@ -27,6 +23,14 @@ const __dirname = path.dirname(__filename);
 // Charger les variables d’environnement
 dotenv.config();
 
+// Vérifier Rhubarb (✔️ sans planter l'app)
+try {
+  const rhubarbPath = execSync("which rhubarb").toString().trim();
+  console.log("📍 Rhubarb binary found:", rhubarbPath);
+} catch (err) {
+  console.warn("⚠️ Rhubarb not found in PATH. Lip sync may fail.");
+}
+
 // Créer le dossier audios
 const audiosPath = path.resolve(__dirname, "audios");
 await fs.mkdir(audiosPath, { recursive: true });
@@ -36,7 +40,7 @@ console.log("📂 'audios/' directory is ready");
 const app = express();
 const port = process.env.PORT || 8080;
 
-// ✅ CORS : accepte appels de Vercel + localhost
+// Middleware CORS (Vercel + local)
 app.use(cors({
   origin: [
     "https://neemba-frontend.vercel.app",
@@ -49,20 +53,26 @@ app.use(cors({
 // Middleware JSON
 app.use(express.json());
 
-// ✅ Sert les fichiers audio statiquement
+// (🔍 debug) Middleware logger simple
+app.use((req, res, next) => {
+  console.log(`📥 ${req.method} ${req.url}`);
+  next();
+});
+
+// Sert les fichiers audio statiquement
 app.use("/audios", express.static(audiosPath));
 
-// ➤ Health check
+// Health check
 app.get("/", (req, res) => {
   res.send("✅ Neemba backend is running.");
 });
 
-// ➤ Test GET /chat (debug)
+// Test GET /chat (debug)
 app.get("/chat", (req, res) => {
   res.send("🟢 POST /chat endpoint is ready.");
 });
 
-// ➤ POST /chat — endpoint principal
+// POST /chat — endpoint principal
 app.post("/chat", async (req, res) => {
   try {
     const userMessage = req.body.message;
@@ -106,7 +116,7 @@ app.post("/chat", async (req, res) => {
   }
 });
 
-// ➤ Démarrage serveur après ingestion
+// Démarrage serveur après ingestion
 const startServer = async () => {
   try {
     console.log("⚙️ Ingesting documents...");
