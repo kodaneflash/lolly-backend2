@@ -16,31 +16,40 @@ import {
   readJsonTranscript,
 } from "./lib/audioUtils.js";
 
-// Définir __dirname en ESM
+// Setup __dirname in ESM
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Charger les variables d’environnement
+// Load env variables
 dotenv.config();
 
-// Vérifier Rhubarb (✔️ sans planter l'app)
+// Validate Rhubarb + FFmpeg presence
 try {
   const rhubarbPath = execSync("which rhubarb").toString().trim();
-  console.log("📍 Rhubarb binary found:", rhubarbPath);
+  console.log("✅ Rhubarb is at:", rhubarbPath);
+  const rhubarbVersion = execSync("rhubarb --version").toString().trim();
+  console.log("✅ Rhubarb version:", rhubarbVersion);
 } catch (err) {
-  console.warn("⚠️ Rhubarb not found in PATH. Lip sync may fail.");
+  console.warn("⚠️ Rhubarb not found. Lip sync might fail.");
 }
 
-// Créer le dossier audios
+try {
+  const ffmpegPath = execSync("which ffmpeg").toString().trim();
+  console.log("✅ FFmpeg is at:", ffmpegPath);
+} catch (err) {
+  console.warn("⚠️ FFmpeg not found. Audio conversion might fail.");
+}
+
+// Prepare audio directory
 const audiosPath = path.resolve(__dirname, "audios");
 await fs.mkdir(audiosPath, { recursive: true });
 console.log("📂 'audios/' directory is ready");
 
-// Initialisation Express
+// Init express
 const app = express();
 const port = process.env.PORT || 8080;
 
-// Middleware CORS (Vercel + local)
+// CORS for Vercel + local dev
 app.use(cors({
   origin: [
     "https://neemba-frontend.vercel.app",
@@ -50,16 +59,16 @@ app.use(cors({
   allowedHeaders: ["Content-Type"],
 }));
 
-// Middleware JSON
+// JSON parsing
 app.use(express.json());
 
-// (🔍 debug) Middleware logger simple
+// Logger middleware (debug)
 app.use((req, res, next) => {
   console.log(`📥 ${req.method} ${req.url}`);
   next();
 });
 
-// Sert les fichiers audio statiquement
+// Serve audio statically
 app.use("/audios", express.static(audiosPath));
 
 // Health check
@@ -67,12 +76,12 @@ app.get("/", (req, res) => {
   res.send("✅ Neemba backend is running.");
 });
 
-// Test GET /chat (debug)
+// Optional test GET /chat
 app.get("/chat", (req, res) => {
   res.send("🟢 POST /chat endpoint is ready.");
 });
 
-// POST /chat — endpoint principal
+// Main chat endpoint
 app.post("/chat", async (req, res) => {
   try {
     const userMessage = req.body.message;
@@ -116,7 +125,7 @@ app.post("/chat", async (req, res) => {
   }
 });
 
-// Démarrage serveur après ingestion
+// Launch server after ingestion
 const startServer = async () => {
   try {
     console.log("⚙️ Ingesting documents...");
