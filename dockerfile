@@ -1,41 +1,37 @@
-# Base image
+# Étape 1 : Image de base
 FROM node:18-bullseye
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-  ffmpeg \
-  curl \
-  unzip \
-  gnupg \
-  && curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - \
-  && echo "deb https://dl.yarnpkg.com/debian stable main" > /etc/apt/sources.list.d/yarn.list \
-  && apt-get update && apt-get install -y yarn \
-  && rm -rf /var/lib/apt/lists/*
+# Étape 2 : Dépendances système (séparées pour éviter les timeouts)
+RUN apt-get update && apt-get install -y curl gnupg
+RUN apt-get install -y dash ffmpeg unzip wget
 
-# Install Rhubarb Lip Sync
+# Étape 3 : Yarn (séparé aussi)
+RUN curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - && \
+    echo "deb https://dl.yarnpkg.com/debian stable main" > /etc/apt/sources.list.d/yarn.list && \
+    apt-get update && apt-get install -y yarn
+
+# Étape 4 : Rhubarb Lip Sync
 RUN mkdir -p /rhubarb && \
     curl -L https://github.com/DanielSWolf/rhubarb-lip-sync/releases/download/v1.10.0/rhubarb-1.10.0-linux.zip -o rhubarb.zip && \
     unzip rhubarb.zip -d /rhubarb && \
     mv /rhubarb/rhubarb /usr/local/bin/rhubarb && \
-    chmod +x /usr/local/bin/rhubarb
+    chmod +x /usr/local/bin/rhubarb && \
+    rm -rf rhubarb.zip /rhubarb
 
-# Set working directory
-WORKDIR /app
-
-# ✅ Copy Rhubarb resources (must exist!)
+# Étape 5 : Copie des fichiers ressources pour Rhubarb
 COPY bin/res/ /usr/local/bin/res/
 
-# Copy app source
+# Étape 6 : Répertoire de travail
+WORKDIR /app
+
+# Étape 7 : Copier tout le projet
 COPY . .
 
-# Install dependencies
+# Étape 8 : Dépendances Node.js
 RUN yarn install --frozen-lockfile
 
-# Set environment
-ENV NODE_ENV=production
-
-# Expose backend port
+# Étape 9 : Exposer port
 EXPOSE 8080
 
-# Run app
+# Étape 10 : Commande de démarrage
 CMD ["node", "index.js"]
