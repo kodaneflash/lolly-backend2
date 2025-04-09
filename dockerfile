@@ -19,20 +19,23 @@ RUN mkdir -p /rhubarb && \
     mv /rhubarb/rhubarb /usr/local/bin/rhubarb && \
     chmod +x /usr/local/bin/rhubarb
 
-# Working directory
+# Set working directory
 WORKDIR /app
 
-# ✅ Copy Rhubarb resources
+# ✅ Copy Rhubarb resources (must exist!)
 COPY bin/res/ /usr/local/bin/res/
 
-# Copy project files
+# Copy app source
 COPY . .
 
 # Install dependencies
 RUN yarn install --frozen-lockfile
 
-# Expose port
+# Set environment
+ENV NODE_ENV=production
+
+# Expose backend port
 EXPOSE 8080
 
-# Start the server
+# Run app
 CMD ["node", "index.js"]
