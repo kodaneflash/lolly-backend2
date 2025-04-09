@@ -1,5 +1,5 @@
 [phases.setup]
-nixPkgs = ["ffmpeg", "curl"]
+nixPkgs = ["ffmpeg", "curl", "yarn"]
 
 [phases.build]
 commands = [
