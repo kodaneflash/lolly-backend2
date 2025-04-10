@@ -5,29 +5,47 @@ import axios from "axios";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-// Animations disponibles
-const animations = [
-  "Talking_0", "Talking_1", "Talking_2",
-  "Crying", "Laughing", "Rumba",
-  "Idle", "Terrified", "Angry"
-];
+// Expression → animations valides
+const expressionToAnimations = {
+  smile: ["Talking_0", "Talking_1", "Laughing"],
+  sad: ["Crying", "Idle"],
+  angry: ["Angry", "Rumba"],
+  surprised: ["Terrified", "Talking_2"],
+  funnyFace: ["Rumba", "Laughing"],
+  default: ["Idle", "Talking_2"]
+};
 
-function getRandomAnimation() {
-  return animations[Math.floor(Math.random() * animations.length)];
+// Détermine une animation cohérente
+function getAnimationForExpression(expression = "default") {
+  const list = expressionToAnimations[expression] || expressionToAnimations["default"];
+  return list[Math.floor(Math.random() * list.length)];
 }
 
-// -- HELPERS --
-
-async function fetchWebsiteData(url = "https://neemba.com") {
+// Analyse le ton pour déterminer une expression faciale
+async function detectFacialExpression(text) {
   try {
-    const { data } = await axios.get(url);
-    return data;
-  } catch (error) {
-    console.error("❌ Échec récupération site Neemba:", error.message);
-    return null;
+    const completion = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo",
+      messages: [
+        {
+          role: "system",
+          content: `Analyse le ton de ce message utilisateur et réponds uniquement par l'une de ces expressions : smile, sad, angry, surprised, funnyFace, default.`
+        },
+        { role: "user", content: text }
+      ],
+      temperature: 0.3,
+      max_tokens: 5
+    });
+
+    const expression = completion.choices[0].message.content.trim().toLowerCase();
+    return expressionToAnimations[expression] ? expression : "default";
+  } catch (err) {
+    console.error("❌ Erreur d'analyse du ton:", err);
+    return "default";
   }
 }
 
+// Truncate helpers
 function truncateText(text, maxTokens) {
   return text.split(/\s+/).slice(0, maxTokens).join(" ");
 }
@@ -45,8 +63,17 @@ function refineQuestionForNeemba(input) {
   return `Parle-moi de ${input} chez Neemba.`;
 }
 
-// -- MAIN --
+async function fetchWebsiteData(url = "https://neemba.com") {
+  try {
+    const { data } = await axios.get(url);
+    return data;
+  } catch (error) {
+    console.error("❌ Échec récupération site Neemba:", error.message);
+    return null;
+  }
+}
 
+// MAIN RAG FUNCTION
 export async function answerWithRAG(userMessage, maxContextTokens = 1000) {
   if (isGenericQuestion(userMessage)) {
     console.log("🔹 Reformulation de la question pour Neemba.");
@@ -93,9 +120,9 @@ Tu es Agathe, une assistante commerciale professionnelle pour www.neemba.com.
 - Si une question est trop vague, invite à la reformuler en lien avec Neemba.
 - Tu ne réponds qu'à propos de Neemba. Hors périmètre = réponse neutre.
 - Tu ne fais pas de blagues.
-- il est inutile de dire d'aller sur le site web neemba.com car les utilisateur sont dejà sur le site web 
+- il est inutile de dire d'aller sur le site web neemba.com car les utilisateur sont déjà sur le site web 
 - Tu comprends les préférences et les comportements des utilisateurs, t'adaptant au ton et au style de conversation.
-- Sur des questions de produits/services, tu es factuelle et précise et donne un maximum d'informations.
+- Sur des questions de produits/services, tu es factuelle et précise et donne un maximum d'informations sur le produit et ses caractéristiques afin de renseigner au maximum l'utilisateur.
 
 🧠 Contexte :
 ${context}
@@ -106,8 +133,6 @@ ${context}
   "messages": [
     {
       "text": "Réponse claire et professionnelle...",
-      "facialExpression": "funnyFace",
-      "animation": "Idle",
       "source": "https://...",
       "image": "https://..."
     }
@@ -129,14 +154,22 @@ Toujours répondre en français.
     });
 
     const parsed = JSON.parse(completion.choices[0].message.content);
+    const messages = parsed.messages || [];
 
-    // Sécurise : injecte une animation aléatoire si manquante ou vide
-    const messages = (parsed.messages || []).map(msg => ({
-      ...msg,
-      animation: animations.includes(msg.animation) ? msg.animation : getRandomAnimation()
-    }));
+    // Analyse + enrichissement avec expression + animation
+    const enrichedMessages = [];
 
-    return { messages };
+    for (const msg of messages) {
+      const facialExpression = await detectFacialExpression(msg.text);
+      const animation = getAnimationForExpression(facialExpression);
+      enrichedMessages.push({
+        ...msg,
+        facialExpression,
+        animation
+      });
+    }
+
+    return { messages: enrichedMessages };
   } catch (err) {
     console.error("❌ Erreur RAG:", err);
     return {
