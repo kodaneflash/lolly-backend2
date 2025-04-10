@@ -20,68 +20,55 @@ import {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Load env variables
+// Load .env
 dotenv.config();
 
-// Validate Rhubarb + FFmpeg presence
+// Ensure binaries are available
 try {
   const rhubarbPath = execSync("which rhubarb").toString().trim();
   console.log("✅ Rhubarb is at:", rhubarbPath);
-  const rhubarbVersion = execSync("rhubarb --version").toString().trim();
-  console.log("✅ Rhubarb version:", rhubarbVersion);
 } catch (err) {
-  console.warn("⚠️ Rhubarb not found. Lip sync might fail.");
+  console.warn("⚠️ Rhubarb not found.");
 }
 
 try {
   const ffmpegPath = execSync("which ffmpeg").toString().trim();
   console.log("✅ FFmpeg is at:", ffmpegPath);
 } catch (err) {
-  console.warn("⚠️ FFmpeg not found. Audio conversion might fail.");
+  console.warn("⚠️ FFmpeg not found.");
 }
 
-// Prepare audio directory
+// Audio dir
 const audiosPath = path.resolve(__dirname, "audios");
 await fs.mkdir(audiosPath, { recursive: true });
-console.log("📂 'audios/' directory is ready");
 
-// Init express
+// Express setup
 const app = express();
 const port = process.env.PORT || 8080;
 
-// CORS for Vercel + local dev
 app.use(cors({
-  origin: [
-    "https://neemba-frontend.vercel.app",
-    "http://localhost:3000"
-  ],
-  methods: ["GET", "POST", "OPTIONS"],
-  allowedHeaders: ["Content-Type"],
+  origin: ["http://localhost:3000", "https://neemba-frontend.vercel.app"],
 }));
-
-// JSON parsing
 app.use(express.json());
+app.use("/audios", express.static(audiosPath));
 
-// Logger middleware (debug)
+// Logs
 app.use((req, res, next) => {
   console.log(`📥 ${req.method} ${req.url}`);
   next();
 });
 
-// Serve audio statically
-app.use("/audios", express.static(audiosPath));
+// Health
+app.get("/", (_, res) => res.send("✅ Neemba backend is running."));
+app.get("/health", (_, res) =>
+  res.status(200).json({
+    status: "ok",
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+  })
+);
 
-// Health check
-app.get("/", (req, res) => {
-  res.send("✅ Neemba backend is running.");
-});
-
-// Optional test GET /chat
-app.get("/chat", (req, res) => {
-  res.send("🟢 POST /chat endpoint is ready.");
-});
-
-// Main chat endpoint
+// Main POST /chat endpoint
 app.post("/chat", async (req, res) => {
   try {
     const userMessage = req.body.message;
@@ -89,66 +76,50 @@ app.post("/chat", async (req, res) => {
       return res.status(400).json({ error: "Missing message." });
     }
 
-    console.log("🧠 Calling RAG...");
-    const ragResponse = await answerWithRAG(userMessage);
-    const messages = ragResponse.messages || [];
+    console.log("🧠 Génération via RAG...");
+    const { messages } = await answerWithRAG(userMessage);
 
-    const processedMessages = await Promise.all(
-      messages.map(async (msg, i) => {
-        const id = `${Date.now()}_${i}`;
+    const processed = await Promise.all(
+      messages.map(async (msg, index) => {
+        const id = `${Date.now()}_${index}`;
         const mp3Path = path.join(audiosPath, `message_${id}.mp3`);
         const jsonPath = path.join(audiosPath, `message_${id}.json`);
 
         try {
           await generateSpeechWithStreaming(msg.text, mp3Path);
           await lipSyncMessage(id);
+          const audio = await audioFileToBase64(mp3Path);
+          const lipsync = await readJsonTranscript(jsonPath);
 
-          const audioBase64 = await audioFileToBase64(mp3Path);
-          const lipsyncData = await readJsonTranscript(jsonPath);
-
-          return {
-            ...msg,
-            audio: audioBase64,
-            lipsync: lipsyncData,
-          };
+          return { ...msg, audio, lipsync };
         } catch (err) {
-          console.error(`❌ Audio processing failed (msg ${i}):`, err.message);
+          console.error(`❌ Processing failed for msg ${id}:`, err.message);
           return { ...msg, audio: null, lipsync: null, error: err.message };
         }
       })
     );
 
-    res.status(200).json({ messages: processedMessages });
+    res.status(200).json({ messages: processed });
   } catch (err) {
-    console.error("❌ Server-level error in /chat:", err);
+    console.error("❌ Internal error:", err);
     res.status(500).json({ error: "Internal server error", detail: err.message });
   }
 });
 
-// Launch server after ingestion
+// Start server after ingestion
 const startServer = async () => {
   try {
-    console.log("⚙️ Ingesting documents...");
+    console.log("📚 Ingesting documents...");
     await ingestDocuments();
-    console.log("📚 Documents ingested successfully.");
+    console.log("✅ Documents ready.");
 
-    app.listen(8080, "0.0.0.0", () => {
+    app.listen(port, () => {
       console.log(`🚀 Neemba API listening on port ${port}`);
     });
   } catch (err) {
-    console.error("❌ Fatal error on startup:", err);
+    console.error("❌ Startup failed:", err);
     process.exit(1);
   }
 };
-
-// Health check route
-app.get("/health", (req, res) => {
-  res.status(200).json({
-    status: "ok",
-    message: "✅ Neemba backend is healthy.",
-    uptime: process.uptime(),
-    timestamp: new Date().toISOString()
-  });
-});
 
 startServer();
