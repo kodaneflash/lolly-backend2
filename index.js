@@ -132,7 +132,7 @@ const startServer = async () => {
     await ingestDocuments();
     console.log("📚 Documents ingested successfully.");
 
-    app.listen(port, "0.0.0.0", () => {
+    app.listen(8080, "0.0.0.0", () => {
       console.log(`🚀 Neemba API listening on port ${port}`);
     });
   } catch (err) {
@@ -140,5 +140,15 @@ const startServer = async () => {
     process.exit(1);
   }
 };
+
+// Health check route
+app.get("/health", (req, res) => {
+  res.status(200).json({
+    status: "ok",
+    message: "✅ Neemba backend is healthy.",
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString()
+  });
+});
 
 startServer();

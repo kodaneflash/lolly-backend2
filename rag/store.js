@@ -9,10 +9,16 @@ export const getVectorStore = async () => {
 
   const openAIApiKey = process.env.OPENAI_API_KEY;
   if (!openAIApiKey) {
-    throw new Error("❌ Missing OPENAI_API_KEY in environment variables");
+    throw new Error("❌ Missing OPENAI_API_KEY in environment variable");
   }
+  console.log("🔍 Clef brute :", JSON.stringify(openAIApiKey));
+  console.log("🔍 Code ASCII :", [...openAIApiKey].map(c => c.charCodeAt(0)));
 
-  const embeddings = new OpenAIEmbeddings({ openAIApiKey });
+  const embeddings = new OpenAIEmbeddings({
+    apiKey: process.env.OPENAI_API_KEY
+  });
+
+  console.log("🔑 Using OPENAI_API_KEY:", openAIApiKey);
 
   vectorStore = await MemoryVectorStore.fromTexts([], [], embeddings);
   return vectorStore;
