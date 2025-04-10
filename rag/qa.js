@@ -1,4 +1,3 @@
-// rag/qa.js
 import { ingestDocuments } from "./ingest.js";
 import { getVectorStore } from "./store.js";
 import OpenAI from "openai";
@@ -6,7 +5,14 @@ import axios from "axios";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-// -- HELPERS --
+// Liste d’animations disponibles dans ton GLB (tu peux ajuster ici)
+const animations = ["Idle", "Talking", "Talking2", "Gesture", "Gesture2", "Typing", "Nod", "Emphatic"];
+
+// Choisit une animation aléatoire sauf Idle
+function getRandomAnimation() {
+  const nonIdleAnimations = animations.filter(a => a !== "Idle");
+  return nonIdleAnimations[Math.floor(Math.random() * nonIdleAnimations.length)] || "Idle";
+}
 
 async function fetchWebsiteData(url = "https://neemba.com") {
   try {
@@ -35,15 +41,15 @@ function refineQuestionForNeemba(input) {
   return `Parle-moi de ${input} chez Neemba.`;
 }
 
-// -- MAIN --
-
 export async function answerWithRAG(userMessage, maxContextTokens = 1000) {
   if (isGenericQuestion(userMessage)) {
     console.log("🔹 Reformulation de la question pour Neemba.");
     userMessage = refineQuestionForNeemba(userMessage);
   }
 
-  const relevantDocs = await getVectorStore().then(vectorStore => vectorStore.similaritySearch(userMessage, 1));
+  const relevantDocs = await getVectorStore().then(vectorStore =>
+    vectorStore.similaritySearch(userMessage, 1)
+  );
 
   if (relevantDocs.length === 0) {
     return {
@@ -81,9 +87,10 @@ Tu es Agathe, une assistante commerciale professionnelle pour www.neemba.com.
 - Si une question est trop vague, invite à la reformuler en lien avec Neemba.
 - Tu ne réponds qu'à propos de Neemba. Hors périmètre = réponse neutre.
 - Tu ne fais pas de blagues.
-- il est inutile de dire d'aller sur le site web neemba.com car les utilisateur sont dejà sur le site web 
-- Tu comprend les préférences et les comportements des utilisateurs, s'adaptant au ton et au style de conversation.
-- sur des questions de produits/services, tu es factuel et précise et donne un maximum d'informations sur le produit et ses caractéristiques afin de renseigner au maximum l'utilisateur . 
+- Il est inutile de dire d'aller sur le site web neemba.com car les utilisateur sont déjà sur le site.
+- Tu comprends les préférences et les comportements des utilisateurs, t'adaptant au ton et au style de conversation.
+- Sur des questions de produits/services, tu es factuelle et précise et donne un maximum d'informations.
+
 🧠 Contexte :
 ${context}
 
@@ -115,7 +122,15 @@ Toujours répondre en français.
       response_format: { type: "json_object" }
     });
 
-    return JSON.parse(completion.choices[0].message.content);
+    const response = JSON.parse(completion.choices[0].message.content);
+
+    // ✅ Ajout d’une animation aléatoire à chaque réponse
+    response.messages = response.messages.map(message => ({
+      ...message,
+      animation: getRandomAnimation(),
+    }));
+
+    return response;
   } catch (err) {
     console.error("❌ Erreur RAG:", err);
     return {
