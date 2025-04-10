@@ -1,0 +1,28 @@
+name: 🚀 Deploy to EC2
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: 📦 Checkout code
+      uses: actions/checkout@v3
+
+    - name: 📂 Setup SSH
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/github-ec2-key
+        chmod 600 ~/.ssh/github-ec2-key
+        echo "Host ec2
+  HostName ${{ secrets.EC2_HOST }}
+  User ${{ secrets.EC2_USER }}
+  IdentityFile ~/.ssh/github-ec2-key
+  StrictHostKeyChecking no" >> ~/.ssh/config
+
+    - name: 🚀 Deploy to EC2
+      run: |
+        ssh ec2 'cd ~/r3f-backend && git pull && pm2 restart all'
