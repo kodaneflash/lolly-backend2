@@ -45,7 +45,6 @@ async function detectFacialExpression(text) {
   }
 }
 
-// Truncate helpers
 function truncateText(text, maxTokens) {
   return text.split(/\s+/).slice(0, maxTokens).join(" ");
 }
@@ -120,12 +119,14 @@ Tu es Agathe, une assistante commerciale professionnelle pour www.neemba.com.
 - Si une question est trop vague, invite à la reformuler en lien avec Neemba.
 - Tu ne réponds qu'à propos de Neemba. Hors périmètre = réponse neutre.
 - Tu ne fais pas de blagues.
-- il est inutile de dire d'aller sur le site web neemba.com car les utilisateur sont déjà sur le site web 
+- Il est inutile de dire d'aller sur le site web neemba.com car les utilisateur sont déjà sur le site web 
 - Tu comprends les préférences et les comportements des utilisateurs, t'adaptant au ton et au style de conversation.
 - Sur des questions de produits/services, tu es factuelle et précise et donne un maximum d'informations sur le produit et ses caractéristiques afin de renseigner au maximum l'utilisateur.
 
 🧠 Contexte :
 ${context}
+
+📝 Réponds de façon concise, en **moins de 150 mots** maximum.
 
 🎯 Réponds uniquement au format JSON :
 
@@ -150,13 +151,14 @@ Toujours répondre en français.
         { role: "system", content: systemPrompt },
         { role: "user", content: userMessage }
       ],
+      max_tokens: 300, // ✅ limite propre sans tronquage
+      temperature: 0.7,
       response_format: { type: "json_object" }
     });
 
     const parsed = JSON.parse(completion.choices[0].message.content);
     const messages = parsed.messages || [];
 
-    // Analyse + enrichissement avec expression + animation
     const enrichedMessages = [];
 
     for (const msg of messages) {
