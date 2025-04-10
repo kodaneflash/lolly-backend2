@@ -15,86 +15,66 @@ import {
   audioFileToBase64,
   readJsonTranscript,
 } from "./lib/audioUtils.js";
+import { splitTextIntoChunks } from "./lib/textUtils.js";
 
-// Setup __dirname in ESM
+// Setup __dirname
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Load .env
 dotenv.config();
 
-// Ensure binaries are available
-try {
-  const rhubarbPath = execSync("which rhubarb").toString().trim();
-  console.log("✅ Rhubarb is at:", rhubarbPath);
-} catch (err) {
-  console.warn("⚠️ Rhubarb not found.");
-}
-
-try {
-  const ffmpegPath = execSync("which ffmpeg").toString().trim();
-  console.log("✅ FFmpeg is at:", ffmpegPath);
-} catch (err) {
-  console.warn("⚠️ FFmpeg not found.");
-}
-
-// Audio dir
 const audiosPath = path.resolve(__dirname, "audios");
 await fs.mkdir(audiosPath, { recursive: true });
 
-// Express setup
 const app = express();
 const port = process.env.PORT || 8080;
 
-app.use(cors({
-  origin: ["http://localhost:3000", "https://neemba-frontend.vercel.app"],
-}));
+app.use(cors({ origin: ["http://localhost:3000", "https://neemba-frontend.vercel.app"] }));
 app.use(express.json());
 app.use("/audios", express.static(audiosPath));
 
-// Logs
 app.use((req, res, next) => {
   console.log(`📥 ${req.method} ${req.url}`);
   next();
 });
 
-// Health
 app.get("/", (_, res) => res.send("✅ Neemba backend is running."));
-app.get("/health", (_, res) =>
-  res.status(200).json({
-    status: "ok",
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-  })
-);
 
-// Main POST /chat endpoint
 app.post("/chat", async (req, res) => {
   try {
     const userMessage = req.body.message;
-    if (!userMessage) {
-      return res.status(400).json({ error: "Missing message." });
-    }
+    if (!userMessage) return res.status(400).json({ error: "Missing message." });
 
     console.log("🧠 Génération via RAG...");
-    const { messages } = await answerWithRAG(userMessage);
+    const { text } = await answerWithRAG(userMessage);
+
+    const chunks = splitTextIntoChunks(text, 400);
 
     const processed = await Promise.all(
-      messages.map(async (msg, index) => {
+      chunks.map(async (chunk, index) => {
         const id = `${Date.now()}_${index}`;
         const mp3Path = path.join(audiosPath, `message_${id}.mp3`);
         const jsonPath = path.join(audiosPath, `message_${id}.json`);
 
         try {
-          await generateSpeechWithStreaming(msg.text, mp3Path);
+          await generateSpeechWithStreaming(chunk, mp3Path);
           await lipSyncMessage(id);
           const audio = await audioFileToBase64(mp3Path);
           const lipsync = await readJsonTranscript(jsonPath);
 
-          return { ...msg, audio, lipsync };
+          const facialExpression = getRandomExpression();
+          const animation = getAnimationForExpression(facialExpression);
+
+          return {
+            text: chunk,
+            facialExpression,
+            animation,
+            audio,
+            lipsync
+          };
         } catch (err) {
-          console.error(`❌ Processing failed for msg ${id}:`, err.message);
-          return { ...msg, audio: null, lipsync: null, error: err.message };
+          console.error(`❌ Processing failed for message_${id}:`, err.message);
+          return { text: chunk, audio: null, lipsync: null, error: err.message };
         }
       })
     );
@@ -106,18 +86,31 @@ app.post("/chat", async (req, res) => {
   }
 });
 
-// Start server after ingestion
+const expressionToAnimations = {
+  smile: ["Talking_0", "Talking_1", "Laughing"],
+  angry: ["Angry", "Idle"],
+  surprised: ["Terrified", "Talking_2"],
+  default: ["Idle", "Talking_2"]
+};
+
+function getAnimationForExpression(expression = "default") {
+  const list = expressionToAnimations[expression] || expressionToAnimations.default;
+  return list[Math.floor(Math.random() * list.length)];
+}
+
+function getRandomExpression() {
+  const expressions = Object.keys(expressionToAnimations);
+  return expressions[Math.floor(Math.random() * expressions.length)];
+}
+
 const startServer = async () => {
   try {
     console.log("📚 Ingesting documents...");
     await ingestDocuments();
     console.log("✅ Documents ready.");
-
-    app.listen(port, () => {
-      console.log(`🚀 Neemba API listening on port ${port}`);
-    });
+    app.listen(port, () => console.log(`🚀 API on http://localhost:${port}`));
   } catch (err) {
-    console.error("❌ Startup failed:", err);
+    console.error("❌ Startup error:", err);
     process.exit(1);
   }
 };

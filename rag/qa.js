@@ -1,10 +1,10 @@
-// rag/qa.js
 import { getVectorStore } from "./store.js";
 import OpenAI from "openai";
 import axios from "axios";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+// Expression → animations valides
 const expressionToAnimations = {
   smile: ["Talking_0", "Talking_1", "Laughing"],
   angry: ["Angry", "Idle"],
@@ -12,30 +12,32 @@ const expressionToAnimations = {
   default: ["Idle", "Talking_2"]
 };
 
+// Détermine une animation cohérente
 function getAnimationForExpression(expression = "default") {
-  const list = expressionToAnimations[expression] || expressionToAnimations.default;
+  const list = expressionToAnimations[expression] || expressionToAnimations["default"];
   return list[Math.floor(Math.random() * list.length)];
 }
 
-async function detectFacialExpression(text) {
+// Analyse le ton pour déterminer une expression faciale
+export async function detectFacialExpression(text) {
   try {
     const completion = await openai.chat.completions.create({
       model: "gpt-3.5-turbo",
       messages: [
         {
           role: "system",
-          content:
-            "Analyse le ton de ce texte et réponds uniquement par : smile, angry, surprised, default."
+          content: `Analyse le ton de ce message utilisateur et réponds uniquement par l'une de ces expressions : smile, sad, angry, surprised, funnyFace, default.`
         },
         { role: "user", content: text }
       ],
-      max_tokens: 5,
-      temperature: 0.3
+      temperature: 0.3,
+      max_tokens: 5
     });
 
     const expression = completion.choices[0].message.content.trim().toLowerCase();
     return expressionToAnimations[expression] ? expression : "default";
-  } catch {
+  } catch (err) {
+    console.error("❌ Erreur d'analyse du ton:", err);
     return "default";
   }
 }
@@ -44,67 +46,78 @@ function truncateText(text, maxTokens) {
   return text.split(/\s+/).slice(0, maxTokens).join(" ");
 }
 
+function isGenericQuestion(input) {
+  const keywords = [
+    "technologie", "innovation", "produits",
+    "services", "solutions", "entreprise",
+    "développement", "savoir-faire"
+  ];
+  return keywords.some(word => input.toLowerCase().includes(word));
+}
+
+function refineQuestionForNeemba(input) {
+  return `Parle-moi de ${input} chez Neemba.`;
+}
+
 async function fetchWebsiteData(url = "https://neemba.com") {
   try {
     const { data } = await axios.get(url);
     return data;
-  } catch {
+  } catch (error) {
+    console.error("❌ Échec récupération site Neemba:", error.message);
     return null;
   }
 }
 
+// MAIN RAG FUNCTION
 export async function answerWithRAG(userMessage, maxContextTokens = 1000) {
-  const isGeneric = ["technologie", "innovation", "produits", "services", "solutions", "entreprise"].some(word =>
-    userMessage.toLowerCase().includes(word)
-  );
-  if (isGeneric) {
-    userMessage = `Parle-moi de ${userMessage} chez Neemba.`;
+  if (isGenericQuestion(userMessage)) {
+    console.log("🔹 Reformulation de la question pour Neemba.");
+    userMessage = refineQuestionForNeemba(userMessage);
   }
 
-  const relevantDocs = await getVectorStore().then(store =>
-    store.similaritySearch(userMessage, 1)
+  const relevantDocs = await getVectorStore().then(vectorStore =>
+    vectorStore.similaritySearch(userMessage, 1)
   );
 
-  if (!relevantDocs.length) {
+  if (relevantDocs.length === 0) {
     return {
-      messages: [
-        {
-          text: "Je suis désolé, je n'ai pas trouvé d'informations pertinentes pour répondre à votre question.",
-          facialExpression: "neutral",
-          animation: "Idle"
-        }
-      ]
+      text: "Je suis désolé, je n'ai pas trouvé d'informations pertinentes pour répondre à votre question."
     };
   }
 
-  const siteData = await fetchWebsiteData();
-  const websiteChunk = siteData ? truncateText(siteData, Math.floor(maxContextTokens / 2)) : "";
+  let websiteData = "";
+  const fetchedData = await fetchWebsiteData();
+  if (fetchedData) {
+    websiteData = truncateText(fetchedData, Math.floor(maxContextTokens / 2));
+  }
 
   const contextChunks = relevantDocs
-    .map(doc => truncateText(doc.pageContent, Math.floor(maxContextTokens / 2)))
+    .map(doc =>
+      truncateText(doc.pageContent, Math.floor(maxContextTokens / 2 / relevantDocs.length))
+    )
     .filter(Boolean);
 
-  const context = [...contextChunks, websiteChunk].join("\n---\n");
+  const context = [...contextChunks, websiteData].filter(Boolean).join("\n---\n");
 
   const systemPrompt = `
-Tu es Agathe, l’assistante commerciale de www.neemba.com.
+Tu es Agathe, une assistante commerciale professionnelle pour www.neemba.com.
 
-🎯 Règles :
-- Réponds uniquement à propos de Neemba
-- Découpe ta réponse en 2 à 3 messages courts (1 à 2 phrases chacun)
-- Ne dépasse pas 150 mots au total
-- Formate tout en JSON (ne parle jamais en dehors du JSON)
-- Structure JSON :
-
-{
-  "messages": [
-    { "text": "Phrase 1.", "source": "", "image": "" },
-    { "text": "Phrase 2.", "source": "", "image": "" }
-  ]
-}
+🎯 Ton rôle :
+- Dire bonjour et te présenter quand on te le demande.
+- Présenter les produits/services de Neemba de façon précise , longue et détaillée.
+- Fournir des réponses claires, précises et professionnelles.
+- Si une question est trop vague, invite à la reformuler en lien avec Neemba.
+- Tu ne réponds qu'à propos de Neemba. Hors périmètre = réponse neutre.
+- Tu ne fais pas de blagues.
+- Il est inutile de dire d'aller sur le site web neemba.com car les utilisateurs sont déjà sur le site web 
+- Tu comprends les préférences et les comportements des utilisateurs, t'adaptant au ton et au style de conversation.
+- Sur des questions de produits/services, tu es factuelle et précise et donne un maximum d'informations sur le produit et ses caractéristiques afin de renseigner au maximum l'utilisateur.
 
 🧠 Contexte :
 ${context}
+
+📝 Rédige une réponse longue (minimum 3 paragraphes), structurée, informative. Ne réponds qu'en texte brut. Ne tronque pas.
 `.trim();
 
   try {
@@ -114,33 +127,16 @@ ${context}
         { role: "system", content: systemPrompt },
         { role: "user", content: userMessage }
       ],
-      max_tokens: 350,
-      temperature: 0.7,
-      response_format: { type: "json_object" }
+      max_tokens: 1000, // pour une réponse longue
+      temperature: 0.7
     });
 
-    const parsed = JSON.parse(completion.choices[0].message.content);
-    const messages = parsed.messages || [];
-
-    const enriched = await Promise.all(
-      messages.map(async (msg) => {
-        const facialExpression = await detectFacialExpression(msg.text);
-        const animation = getAnimationForExpression(facialExpression);
-        return { ...msg, facialExpression, animation };
-      })
-    );
-
-    return { messages: enriched };
+    const text = completion.choices[0].message.content.trim();
+    return { text };
   } catch (err) {
-    console.error("❌ RAG failure:", err);
+    console.error("❌ Erreur RAG:", err);
     return {
-      messages: [
-        {
-          text: "Erreur lors du traitement. Merci de réessayer.",
-          facialExpression: "default",
-          animation: "Idle"
-        }
-      ]
+      text: "Erreur de traitement, réessaie plus tard."
     };
   }
 }
