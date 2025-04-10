@@ -1,10 +1,20 @@
-// rag/qa.js
 import { ingestDocuments } from "./ingest.js";
 import { getVectorStore } from "./store.js";
 import OpenAI from "openai";
 import axios from "axios";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+// Animations disponibles
+const animations = [
+  "Talking_0", "Talking_1", "Talking_2",
+  "Crying", "Laughing", "Rumba",
+  "Idle", "Terrified", "Angry"
+];
+
+function getRandomAnimation() {
+  return animations[Math.floor(Math.random() * animations.length)];
+}
 
 // -- HELPERS --
 
@@ -43,7 +53,9 @@ export async function answerWithRAG(userMessage, maxContextTokens = 1000) {
     userMessage = refineQuestionForNeemba(userMessage);
   }
 
-  const relevantDocs = await getVectorStore().then(vectorStore => vectorStore.similaritySearch(userMessage, 1));
+  const relevantDocs = await getVectorStore().then(vectorStore =>
+    vectorStore.similaritySearch(userMessage, 1)
+  );
 
   if (relevantDocs.length === 0) {
     return {
@@ -82,8 +94,9 @@ Tu es Agathe, une assistante commerciale professionnelle pour www.neemba.com.
 - Tu ne réponds qu'à propos de Neemba. Hors périmètre = réponse neutre.
 - Tu ne fais pas de blagues.
 - il est inutile de dire d'aller sur le site web neemba.com car les utilisateur sont dejà sur le site web 
-- Tu comprend les préférences et les comportements des utilisateurs, s'adaptant au ton et au style de conversation.
-- sur des questions de produits/services, tu es factuel et précise et donne un maximum d'informations sur le produit et ses caractéristiques afin de renseigner au maximum l'utilisateur . 
+- Tu comprends les préférences et les comportements des utilisateurs, t'adaptant au ton et au style de conversation.
+- Sur des questions de produits/services, tu es factuelle et précise et donne un maximum d'informations.
+
 🧠 Contexte :
 ${context}
 
@@ -115,7 +128,15 @@ Toujours répondre en français.
       response_format: { type: "json_object" }
     });
 
-    return JSON.parse(completion.choices[0].message.content);
+    const parsed = JSON.parse(completion.choices[0].message.content);
+
+    // Sécurise : injecte une animation aléatoire si manquante ou vide
+    const messages = (parsed.messages || []).map(msg => ({
+      ...msg,
+      animation: animations.includes(msg.animation) ? msg.animation : getRandomAnimation()
+    }));
+
+    return { messages };
   } catch (err) {
     console.error("❌ Erreur RAG:", err);
     return {
