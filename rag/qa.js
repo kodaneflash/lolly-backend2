@@ -1,3 +1,4 @@
+import { ingestDocuments } from "./ingest.js";
 import { getVectorStore } from "./store.js";
 import OpenAI from "openai";
 import axios from "axios";
@@ -7,9 +8,10 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 // Expression → animations valides
 const expressionToAnimations = {
   smile: ["Talking_0", "Talking_1", "Laughing"],
+
   angry: ["Angry", "Idle"],
   surprised: ["Terrified", "Talking_2"],
-  default: ["Idle", "Talking_2"]
+   default: ["Idle", "Talking_2"]
 };
 
 // Détermine une animation cohérente
@@ -19,7 +21,7 @@ function getAnimationForExpression(expression = "default") {
 }
 
 // Analyse le ton pour déterminer une expression faciale
-export async function detectFacialExpression(text) {
+async function detectFacialExpression(text) {
   try {
     const completion = await openai.chat.completions.create({
       model: "gpt-3.5-turbo",
@@ -82,7 +84,13 @@ export async function answerWithRAG(userMessage, maxContextTokens = 1000) {
 
   if (relevantDocs.length === 0) {
     return {
-      text: "Je suis désolé, je n'ai pas trouvé d'informations pertinentes pour répondre à votre question."
+      messages: [
+        {
+          text: "Je suis désolé, je n'ai pas trouvé d'informations pertinentes pour répondre à votre question.",
+          facialExpression: "neutral",
+          animation: "Idle"
+        }
+      ]
     };
   }
 
@@ -110,14 +118,29 @@ Tu es Agathe, une assistante commerciale professionnelle pour www.neemba.com.
 - Si une question est trop vague, invite à la reformuler en lien avec Neemba.
 - Tu ne réponds qu'à propos de Neemba. Hors périmètre = réponse neutre.
 - Tu ne fais pas de blagues.
-- Il est inutile de dire d'aller sur le site web neemba.com car les utilisateurs sont déjà sur le site web 
+- Il est inutile de dire d'aller sur le site web neemba.com car les utilisateur sont déjà sur le site web 
 - Tu comprends les préférences et les comportements des utilisateurs, t'adaptant au ton et au style de conversation.
 - Sur des questions de produits/services, tu es factuelle et précise et donne un maximum d'informations sur le produit et ses caractéristiques afin de renseigner au maximum l'utilisateur.
 
 🧠 Contexte :
 ${context}
 
-📝 Rédige une réponse longue (minimum 3 paragraphes), structurée, informative. Ne réponds qu'en texte brut. Ne tronque pas.
+📝 Réponds de façon concise, en **moins de 150 mots** maximum.
+
+🎯 Réponds uniquement au format JSON :
+
+{
+  "messages": [
+    {
+      "text": "Réponse claire et professionnelle...",
+      "source": "https://...",
+      "image": "https://..."
+    }
+  ]
+}
+
+🛑 Ne parle jamais en dehors du JSON. Pas de texte hors JSON.
+Toujours répondre en français.
 `.trim();
 
   try {
@@ -127,16 +150,37 @@ ${context}
         { role: "system", content: systemPrompt },
         { role: "user", content: userMessage }
       ],
-      max_tokens: 1000, // pour une réponse longue
-      temperature: 0.7
+      max_tokens: 300, // ✅ limite propre sans tronquage
+      temperature: 0.7,
+      response_format: { type: "json_object" }
     });
 
-    const text = completion.choices[0].message.content.trim();
-    return { text };
+    const parsed = JSON.parse(completion.choices[0].message.content);
+    const messages = parsed.messages || [];
+
+    const enrichedMessages = [];
+
+    for (const msg of messages) {
+      const facialExpression = await detectFacialExpression(msg.text);
+      const animation = getAnimationForExpression(facialExpression);
+      enrichedMessages.push({
+        ...msg,
+        facialExpression,
+        animation
+      });
+    }
+
+    return { messages: enrichedMessages };
   } catch (err) {
     console.error("❌ Erreur RAG:", err);
     return {
-      text: "Erreur de traitement, réessaie plus tard."
+      messages: [
+        {
+          text: "Erreur de traitement, réessaie plus tard.",
+          facialExpression: "sad",
+          animation: "Crying"
+        }
+      ]
     };
   }
 }
