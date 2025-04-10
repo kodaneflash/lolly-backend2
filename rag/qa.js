@@ -93,7 +93,7 @@ ${context}
   "messages": [
     {
       "text": "Réponse claire et professionnelle...",
-      "facialExpression": "smile",
+      "facialExpression": "funnyFace",
       "animation": "Idle",
       "source": "https://...",
       "image": "https://..."
