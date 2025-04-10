@@ -1,63 +1,44 @@
-import fs from "fs/promises";
+// rag/ingest.js
+import fs from "fs";
 import path from "path";
 import { getVectorStore } from "./store.js";
 
 let hasIndexed = false;
 
-async function readTextFilesFromDir(dirPath: string) {
-  const files = await fs.readdir(dirPath);
-  const textFiles = files.filter(file => file.endsWith(".txt") || file.endsWith(".md"));
-
-  return Promise.all(
-    textFiles.map(async file => ({
+function readTextFilesFromDir(dirPath) {
+  const files = fs.readdirSync(dirPath);
+  return files
+    .filter(file => file.endsWith(".txt") || file.endsWith(".md"))
+    .map(file => ({
       name: file,
-      content: await fs.readFile(path.join(dirPath, file), "utf8"),
-    }))
-  );
+      content: fs.readFileSync(path.join(dirPath, file), "utf8"),
+    }));
 }
 
-function smartSplitIntoChunks(text: string, maxChunkSize = 500): string[] {
-  const paragraphs = text.split(/\n\s*\n/); // split on empty lines
-  const chunks: string[] = [];
-  let currentChunk = "";
-
-  for (const para of paragraphs) {
-    const trimmed = para.trim();
-    if (!trimmed) continue;
-
-    if ((currentChunk + "\n\n" + trimmed).length > maxChunkSize) {
-      if (currentChunk) chunks.push(currentChunk.trim());
-      currentChunk = trimmed;
-    } else {
-      currentChunk += "\n\n" + trimmed;
-    }
-  }
-
-  if (currentChunk) chunks.push(currentChunk.trim());
-  return chunks;
+function splitIntoChunks(text, min = 200, max = 500) {
+  const pattern = new RegExp(`(.|\\s){${min},${max}}`, "g");
+  return text.match(pattern) || [];
 }
 
 export async function ingestDocuments(directory = "rag_project/docs") {
   if (hasIndexed) return;
 
   try {
-    const documents = await readTextFilesFromDir(directory);
-    const vectorStore = await getVectorStore();
+    const documents = readTextFilesFromDir(directory);
 
     for (const { name, content } of documents) {
-      const chunks = smartSplitIntoChunks(content);
+      const chunks = splitIntoChunks(content);
       const docs = chunks.map(chunk => ({
         pageContent: chunk,
         metadata: { source: name },
       }));
 
-      await vectorStore.addDocuments(docs);
+      await getVectorStore().then(vectorStore => vectorStore.addDocuments(docs));
       console.log(`✅ "${name}" indexé (${chunks.length} chunk${chunks.length > 1 ? "s" : ""})`);
     }
 
     hasIndexed = true;
-    console.log("📦 Tous les documents ont été indexés.");
-  } catch (err: any) {
+  } catch (err) {
     console.error("❌ Erreur d'indexation des documents:", err.message);
     throw err;
   }
