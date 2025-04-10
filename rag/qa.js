@@ -8,18 +8,18 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 // Expression → animations valides
 const expressionToAnimations = {
   smile: ["Talking_0", "Talking_1", "Laughing"],
-  sad: ["Crying", "Idle"],
-  angry: ["Angry", "Rumba"],
+  angry: ["Angry", "Idle"],
   surprised: ["Terrified", "Talking_2"],
-  funnyFace: ["Rumba", "Laughing"],
-  default: ["Idle", "Talking_2"]
+   default: ["Idle", "Talking_2"]
 };
 
+// Détermine une animation cohérente
 function getAnimationForExpression(expression = "default") {
   const list = expressionToAnimations[expression] || expressionToAnimations["default"];
   return list[Math.floor(Math.random() * list.length)];
 }
 
+// Analyse le ton pour déterminer une expression faciale
 async function detectFacialExpression(text) {
   try {
     const completion = await openai.chat.completions.create({
@@ -117,27 +117,21 @@ Tu es Agathe, une assistante commerciale professionnelle pour www.neemba.com.
 - Si une question est trop vague, invite à la reformuler en lien avec Neemba.
 - Tu ne réponds qu'à propos de Neemba. Hors périmètre = réponse neutre.
 - Tu ne fais pas de blagues.
-- Il est inutile de dire d'aller sur le site web neemba.com car les utilisateurs sont déjà sur le site.
+- Il est inutile de dire d'aller sur le site web neemba.com car les utilisateur sont déjà sur le site web 
 - Tu comprends les préférences et les comportements des utilisateurs, t'adaptant au ton et au style de conversation.
 - Sur des questions de produits/services, tu es factuelle et précise et donne un maximum d'informations sur le produit et ses caractéristiques afin de renseigner au maximum l'utilisateur.
 
 🧠 Contexte :
 ${context}
 
-📝 Structure ta réponse en **plusieurs messages courts** (1 à 3 phrases chacun, max 3 messages au total). Chaque message sera animé individuellement.
-📝 Garde la réponse globale concise (environ 100 à 150 mots maximum).
+📝 Réponds de façon concise, en **moins de 150 mots** maximum.
 
 🎯 Réponds uniquement au format JSON :
 
 {
   "messages": [
     {
-      "text": "Une réponse concise en une ou deux phrases.",
-      "source": "https://...",
-      "image": "https://..."
-    },
-    {
-      "text": "Une autre phrase pour enchaîner.",
+      "text": "Réponse claire et professionnelle...",
       "source": "https://...",
       "image": "https://..."
     }
@@ -155,7 +149,7 @@ Toujours répondre en français.
         { role: "system", content: systemPrompt },
         { role: "user", content: userMessage }
       ],
-      max_tokens: 350,
+      max_tokens: 300, // ✅ limite propre sans tronquage
       temperature: 0.7,
       response_format: { type: "json_object" }
     });
