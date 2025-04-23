@@ -9,7 +9,6 @@ import { fileURLToPath } from "url";
 import { answerWithRAG } from "./rag/qa.js";
 import { ingestDocuments } from "./rag/ingest.js";
 import { audioFileToBase64 } from "./lib/audioUtils.js";
-import { generateElevenLabsAudio } from "./lib/elevenLabsTTS.js";
 import { synthesizeSpeechWithVisemes } from "./lib/azureTTS.js";
 
 // Setup __dirname
@@ -60,8 +59,9 @@ app.get("/health", (_, res) =>
 app.post("/chat", async (req, res) => {
   try {
     const userMessage = req.body.message;
-    const engine = req.body.engine || "azure"; // "azure" ou "deepgram"
-    if (!userMessage) return res.status(400).json({ error: "Missing message." });
+    if (!userMessage) {
+      return res.status(400).json({ error: "Missing message." });
+    }
 
     const { messages } = await answerWithRAG(userMessage);
 
@@ -69,28 +69,21 @@ app.post("/chat", async (req, res) => {
       messages.map(async (msg, index) => {
         const id = `${Date.now()}_${index}`;
         const audioPath = path.join(audiosPath, `message_${id}.wav`);
-        let audio, cues;
 
         try {
-          if (engine === "azure") {
-            const visemes = await synthesizeSpeechWithVisemes(msg.text, audioPath);
-            audio = await audioFileToBase64(audioPath);
-            cues = visemes.map((v, idx, arr) => {
-              const start = v.time;
-              const nextStart = arr[idx + 1]?.time;
-              const end = nextStart ? (start + nextStart) / 2 : start + 0.15;
-              return {
-                value: mapAzureVisemeIdToMouthCue(v.visemeId),
-                start,
-                end,
-              };
-            });
-          } else if (engine === "deepgram") {
-            // ici tu peux utiliser ElevenLabs pour générer l'audio, puis Deepgram pour analyser
-            await generateElevenLabsAudio(msg.text, audioPath); // à implémenter
-            audio = await audioFileToBase64(audioPath);
-            cues = await analyzeVisemesWithDeepgram(audioPath);
-          }
+          const visemes = await synthesizeSpeechWithVisemes(msg.text, audioPath);
+          const audio = await audioFileToBase64(audioPath);
+
+          const cues = visemes.map((v, idx, arr) => {
+            const start = v.time;
+            const nextStart = arr[idx + 1]?.time;
+            const end = nextStart ? (start + nextStart) / 2 : start + 0.15;
+            return {
+              value: mapAzureVisemeIdToMouthCue(v.visemeId),
+              start,
+              end
+            };
+          });
 
           return {
             ...msg,
@@ -98,7 +91,7 @@ app.post("/chat", async (req, res) => {
             lipsync: { mouthCues: cues },
           };
         } catch (err) {
-          console.error(`❌ TTS error (${engine}):`, err.message);
+          console.error(`❌ Azure TTS error:`, err.message);
           return { ...msg, audio: null, lipsync: null, error: err.message };
         }
       })

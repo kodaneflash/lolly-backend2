@@ -1,4 +1,4 @@
-name: 🚀 Deploy to EC2
+name: 🚀 Deploy to Azure VM
 
 on:
   push:
@@ -16,23 +16,44 @@ jobs:
       - name: 🔐 Setup SSH key
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
+          echo "${{ secrets.AZURE_SSH_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
         shell: bash
 
-      - name: 🛡️ Add EC2 to known_hosts
+      - name: 🛡️ Add Azure VM to known_hosts
         run: |
-          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ secrets.AZURE_HOST }} >> ~/.ssh/known_hosts
         shell: bash
 
-      - name: 🚀 Deploy to EC2
+      - name: 🚀 Deploy to Azure VM
         run: |
-          ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+          ssh ${{ secrets.AZURE_USER }}@${{ secrets.AZURE_HOST }} << 'EOF'
+            mkdir -p ~/r3f-backend
             cd ~/r3f-backend
+
+            # Pull latest code
+            if [ ! -d ".git" ]; then
+              git clone https://github.com/leeveo/r3f-virtual-girlfriend-backend.git .  # À adapter !
+            else
+              git reset --hard HEAD
+              git pull origin main
+            fi
+
+            # Node + PM2 (ajuste si nécessaire)
             export NVM_DIR="$HOME/.nvm"
             source "$NVM_DIR/nvm.sh"
             export PATH=$PATH:$NVM_DIR/versions/node/v18.20.8/bin
-            git reset --hard HEAD
-            git pull origin main
-            pm2 restart r3f-backend || pm2 start ecosystem.config.cjs
+
+            npm install
+            pm2 restart r3f-backend || pm2 start index.js --name r3f-backend
+
+            # Ngrok (relance avec PM2)
+            pm2 delete ngrok-tunnel || true
+            pm2 start "ngrok http 3000" --name ngrok-tunnel
           EOF
+
+      - name: 🌐 Get ngrok URL
+        run: |
+          curl -s http://${{ secrets.AZURE_HOST }}:4040/api/tunnels \
+            | grep -o 'https://[a-zA-Z0-9.-]*ngrok-free.app' \
+            | head -n 1
