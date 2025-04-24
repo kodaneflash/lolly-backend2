@@ -32,11 +32,12 @@ const port = process.env.PORT || 8080;
 // CORS
 // CORS - remplacement complet
 app.use(cors({
-  origin: '*', // ou ton frontend (ex: 'http://localhost:5173')
-  methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  origin: [
+    "https://neemba-frontend.vercel.app"
+  ],
+  methods: ["GET", "POST", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
 }));
-
 
 
 app.use((req, res, next) => {
