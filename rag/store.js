@@ -1,4 +1,4 @@
-// rag/store.js
+// rag/store.js pour le rag
 import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
