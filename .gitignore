@@ -6,3 +6,5 @@ audios/message_*
 !.elasticbeanstalk/*.cfg.yml
 !.elasticbeanstalk/*.global.yml
 .ebextensions/
+r3f-key.pem
+r3f-vm_key.pem
