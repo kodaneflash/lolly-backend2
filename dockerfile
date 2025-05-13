@@ -27,7 +27,7 @@ RUN mkdir -p /usr/local/bin/res/
 
 # Copy package files first for better caching
 COPY package.json yarn.lock ./
-RUN yarn install --frozen-lockfile
+RUN yarn install
 
 # Copy the application content
 COPY . .
