@@ -22,7 +22,9 @@ RUN curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | gpg --dearmor | tee /usr
 RUN curl -L https://github.com/DanielSWolf/rhubarb-lip-sync/releases/download/v1.14.0/rhubarb-linux -o /usr/local/bin/rhubarb && \
     chmod +x /usr/local/bin/rhubarb
 
+# Copy the entire bin/res directory with acoustic models
 COPY bin/res/ /usr/local/bin/res/
+
 COPY package.json yarn.lock ./
 RUN yarn install --frozen-lockfile
 COPY . .
