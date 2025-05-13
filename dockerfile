@@ -22,12 +22,18 @@ RUN curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | gpg --dearmor | tee /usr
 RUN curl -L https://github.com/DanielSWolf/rhubarb-lip-sync/releases/download/v1.14.0/rhubarb-linux -o /usr/local/bin/rhubarb && \
     chmod +x /usr/local/bin/rhubarb
 
-# Copy the entire bin/res directory with acoustic models
-COPY bin/res/ /usr/local/bin/res/
+# Create resources directory
+RUN mkdir -p /usr/local/bin/res/
 
+# Copy package files first for better caching
 COPY package.json yarn.lock ./
 RUN yarn install --frozen-lockfile
+
+# Copy the application content
 COPY . .
+
+# Copy the acoustic model files to the expected location
+RUN cp -r bin/res/* /usr/local/bin/res/
 
 EXPOSE 3000
 
