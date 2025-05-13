@@ -18,15 +18,15 @@ RUN curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | gpg --dearmor | tee /usr
     apt-get install -y yarn && \
     rm -rf /var/lib/apt/lists/*
 
-# Installer Rhubarb Lip Sync
-RUN curl -L https://github.com/DanielSWolf/rhubarb-lip-sync/releases/download/v1.10.0/rhubarb-linux -o /usr/local/bin/rhubarb && \
+# Install Rhubarb Lip Sync
+RUN curl -L https://github.com/DanielSWolf/rhubarb-lip-sync/releases/download/v1.14.0/rhubarb-linux -o /usr/local/bin/rhubarb && \
     chmod +x /usr/local/bin/rhubarb
 
-#COPY bin/res/ /usr/local/bin/res/
+COPY bin/res/ /usr/local/bin/res/
 COPY package.json yarn.lock ./
 RUN yarn install --frozen-lockfile
 COPY . .
 
-EXPOSE 8080
+EXPOSE 3000
 
 CMD ["node", "index.js"]

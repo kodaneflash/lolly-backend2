@@ -19,7 +19,7 @@ const openai = new OpenAI({
 });
 
 const elevenLabsApiKey = process.env.ELEVEN_LABS_API_KEY;
-const voiceID = "CwhRBWXzGAHq8TQ4Fs17";
+const voiceID = "4tRn1lSkEn13EVTuqb0g";
 
 const app = express();
 app.use(express.json());
@@ -35,7 +35,7 @@ app.get("/voices", async (req, res) => {
     const filteredVoices = await voice.getVoices(elevenLabsApiKey, {
       page_size: 1, // Limit the number of results
       gender: "female", // Filter by gender
-      language: "fr", // Filter by language
+      language: "en", // Filter by language
     });
     res.send(filteredVoices);
   } catch (error) {
@@ -274,7 +274,7 @@ app.post("/chat", async (req, res) => {
   - animation: one of [Talking_0, Talking_1, Talking_2, Crying, Laughing, Rumba, Idle, Terrified, Angry]
   - image (optional): a real and public image URL from reliable sources like Unsplash or Wikimedia
   - source (optional): a reliable URL source if referencing facts
-  Always answers in french . 
+  Always answers in English.
   Only include image URLs that are guaranteed to work without authentication or download.
 /
  Never use Pinterest or protected images.

@@ -8,7 +8,7 @@ import { fileURLToPath } from "url";
 
 import { answerWithRAG } from "./rag/qa.js";
 import { ingestDocuments } from "./rag/ingest.js";
-import { audioFileToBase64 } from "./lib/audioUtils.js";
+import { audioFileToBase64, generateSpeechWithStreaming, lipSyncMessage, readJsonTranscript } from "./lib/audioUtils.js";
 import { generateElevenLabsAudio } from "./lib/elevenLabsTTS.js";
 import { synthesizeSpeechWithVisemes } from "./lib/azureTTS.js";
 
@@ -33,7 +33,7 @@ const port = process.env.PORT || 3000;
 // CORS - remplacement complet
 app.use(cors({
   origin: [
-    "https://neemba-frontend.vercel.app"
+    "https://lolly.gg"
   ],
   methods: ["GET", "POST", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"]
@@ -69,7 +69,7 @@ app.get("/health", (_, res) =>
 app.post("/chat", async (req, res) => {
   try {
     const userMessage = req.body.message;
-    const engine = req.body.engine || "azure"; // "azure" ou "deepgram"
+    const engine = req.body.engine || "elevenlabs"; // "azure" ou "elevenlabs"
     if (!userMessage) return res.status(400).json({ error: "Missing message." });
 
     const { messages } = await answerWithRAG(userMessage);
@@ -78,6 +78,8 @@ app.post("/chat", async (req, res) => {
       messages.map(async (msg, index) => {
         const id = `${Date.now()}_${index}`;
         const audioPath = path.join(audiosPath, `message_${id}.wav`);
+        const mp3Path = path.join(audiosPath, `message_${id}.mp3`);
+        const jsonPath = path.join(audiosPath, `message_${id}.json`);
         let audio, cues;
 
         try {
@@ -94,11 +96,17 @@ app.post("/chat", async (req, res) => {
                 end,
               };
             });
-          } else if (engine === "deepgram") {
-            // ici tu peux utiliser ElevenLabs pour générer l'audio, puis Deepgram pour analyser
-            await generateElevenLabsAudio(msg.text, audioPath); // à implémenter
-            audio = await audioFileToBase64(audioPath);
-            cues = await analyzeVisemesWithDeepgram(audioPath);
+          } else if (engine === "elevenlabs") {
+            // Generate audio with ElevenLabs
+            await generateElevenLabsAudio(msg.text, mp3Path);
+            
+            // Run Rhubarb to generate lip sync data
+            await lipSyncMessage(id);
+            
+            // Read the generated files
+            audio = await audioFileToBase64(mp3Path);
+            const lipsyncData = await readJsonTranscript(jsonPath);
+            cues = lipsyncData.mouthCues;
           }
 
           return {

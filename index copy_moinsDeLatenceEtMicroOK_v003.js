@@ -23,7 +23,7 @@ app.use(cors());
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || "-" });
 const elevenLabsApiKey = process.env.ELEVEN_LABS_API_KEY;
-const voiceID = "CwhRBWXzGAHq8TQ4Fs17";
+const voiceID = "4tRn1lSkEn13EVTuqb0g";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const audiosDir = path.resolve(__dirname, "audios");
