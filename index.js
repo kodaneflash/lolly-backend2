@@ -32,9 +32,8 @@ await fs.mkdir(audiosPath, { recursive: true });
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Get allowed origins from environment variables or use default
 // Start with the origin that must always be allowed for direct IP access/testing
-let dynamicOrigins = ["http://3.226.248.42:3000"];
+let dynamicOrigins = [];
 
 if (process.env.ALLOWED_ORIGINS) {
   // If ALLOWED_ORIGINS is set in the environment, add them

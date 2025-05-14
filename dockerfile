@@ -4,6 +4,7 @@ FROM node:18
 WORKDIR /app
 
 # Install system dependencies including ffmpeg
+# Note: We're installing system ffmpeg as a backup even though we use ffmpeg-static
 RUN apt-get update && apt-get install -y \
     ffmpeg \
     && rm -rf /var/lib/apt/lists/*
@@ -18,11 +19,13 @@ COPY . .
 # Set file permissions for executables
 RUN chmod +x bin/Rhubarb-Lip-Sync-1.14.0-Linux/rhubarb
 
-# Create res directory if it doesn't exist
+# Create directories if they don't exist
 RUN mkdir -p bin/res
-
-# Ensure audios directory exists
 RUN mkdir -p audios && chmod 777 audios
+
+# Add a command to verify ffmpeg installation
+RUN ffmpeg -version
+RUN echo "FFMPEG binary from package: $(node -e "console.log(require('ffmpeg-static'))")"
 
 # Expose the port the app runs on
 ENV PORT=8080

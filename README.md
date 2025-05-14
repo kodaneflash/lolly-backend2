@@ -95,6 +95,49 @@ See `env.example` for all required environment variables.
 
 4. Make sure CORS is configured correctly for your frontend domain.
 
+## Deploying to Railway with Docker
+
+To deploy this project to Railway using Docker:
+
+1. Make sure you have the Railway CLI installed:
+   ```
+   npm install -g @railway/cli
+   ```
+
+2. Login to Railway:
+   ```
+   railway login
+   ```
+
+3. Initialize your project (if not already done):
+   ```
+   railway init
+   ```
+
+4. Link your project to an existing Railway project:
+   ```
+   railway link
+   ```
+
+5. Deploy using the Dockerfile:
+   ```
+   railway up
+   ```
+
+6. Important: In Railway dashboard, make sure you:
+   - Set the deployment to use the Dockerfile option
+   - Set all required environment variables (.env)
+   - Enable building the project using Docker
+
+This deployment method ensures that ffmpeg and other dependencies are correctly installed and available to the application at runtime.
+
+## Troubleshooting
+
+If you encounter the "spawn ffmpeg ENOENT" error:
+1. Make sure your deployment is using Docker, not the buildpack
+2. Verify that ffmpeg-static is properly imported and used in your code
+3. Check Railway logs for any missing dependencies or permission issues
+
 ## License
 
 Proprietary - All rights reserved.

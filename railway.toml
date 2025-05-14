@@ -1,0 +1,20 @@
+[build]
+builder = "nixpacks"
+
+[nixpacks]
+install-cmd = """
+apt-get update && apt-get install -y ffmpeg
+mkdir -p bin/res
+mkdir -p audios && chmod 777 audios
+chmod +x bin/Rhubarb-Lip-Sync-1.14.0-Linux/rhubarb
+ffmpeg -version
+"""
+
+[deploy]
+startCommand = "node index.js"
+restartPolicyType = "ON_FAILURE"
+healthcheckPath = "/health"
+healthcheckTimeout = 300
+
+[variables]
+PORT = "8080" 
