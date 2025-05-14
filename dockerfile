@@ -1,40 +1,32 @@
-FROM node:18-slim
+FROM node:18
 
+# Set working directory
 WORKDIR /app
 
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        ffmpeg \
-        curl \
-        unzip \
-        wget \
-        gnupg \
-        ca-certificates && \
-    rm -rf /var/lib/apt/lists/*
+# Install system dependencies including ffmpeg
+RUN apt-get update && apt-get install -y \
+    ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | gpg --dearmor | tee /usr/share/keyrings/yarn.gpg > /dev/null && \
-    echo "deb [signed-by=/usr/share/keyrings/yarn.gpg] https://dl.yarnpkg.com/debian stable main" > /etc/apt/sources.list.d/yarn.list && \
-    apt-get update && \
-    apt-get install -y yarn && \
-    rm -rf /var/lib/apt/lists/*
+# Copy package files and install dependencies
+COPY package*.json ./
+RUN npm ci
 
-# Install Rhubarb Lip Sync
-RUN curl -L https://github.com/DanielSWolf/rhubarb-lip-sync/releases/download/v1.14.0/rhubarb-linux -o /usr/local/bin/rhubarb && \
-    chmod +x /usr/local/bin/rhubarb
-
-# Create resources directory
-RUN mkdir -p /usr/local/bin/res/
-
-# Copy package files first for better caching
-COPY package.json yarn.lock ./
-RUN yarn install
-
-# Copy the application content
+# Copy project files
 COPY . .
 
-# Copy the acoustic model files to the expected location
-RUN cp -r bin/res/* /usr/local/bin/res/
+# Set file permissions for executables
+RUN chmod +x bin/Rhubarb-Lip-Sync-1.14.0-Linux/rhubarb
 
-EXPOSE 3000
+# Create res directory if it doesn't exist
+RUN mkdir -p bin/res
 
+# Ensure audios directory exists
+RUN mkdir -p audios && chmod 777 audios
+
+# Expose the port the app runs on
+ENV PORT=8080
+EXPOSE 8080
+
+# Run the application
 CMD ["node", "index.js"]

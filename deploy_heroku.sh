@@ -1,9 +1,14 @@
 #!/bin/bash
 
 # Replace with your Heroku app name
-HEROKU_APP_NAME="your-app-name"
+HEROKU_APP_NAME="r3f-virtual-gf-backend"
 
 echo "🚀 Deploying to Heroku ($HEROKU_APP_NAME)..."
+
+# Ensure rhubarb is executable
+echo "🔧 Setting binary permissions..."
+chmod +x bin/rhubarb
+chmod +x bin/Rhubarb-Lip-Sync-1.14.0-Linux/rhubarb
 
 # Install Heroku CLI if not already installed
 if ! command -v heroku &> /dev/null; then
@@ -38,8 +43,22 @@ if [ -f .env ]; then
     done < .env
 fi
 
+# Verify critical environment variables
+echo "🔍 Checking for required environment variables..."
+required_vars=("ELEVEN_LABS_API_KEY" "ELEVEN_LABS_VOICE_ID" "OPENAI_API_KEY" "WEAVIATE_API_KEY" "WEAVIATE_URL")
+for var in "${required_vars[@]}"; do
+    value=$(heroku config:get "$var" --app $HEROKU_APP_NAME 2>/dev/null)
+    if [ -z "$value" ]; then
+        echo "⚠️ Warning: $var is not set. Please set it manually with:"
+        echo "heroku config:set $var=YOUR_VALUE --app $HEROKU_APP_NAME"
+    else
+        echo "✅ $var is configured"
+    fi
+done
+
 # Push to Heroku
 echo "📤 Pushing to Heroku..."
 git push heroku main
 
-echo "✅ Deployment to Heroku complete!" 
+echo "✅ Deployment to Heroku complete!"
+echo "🔄 View logs with: heroku logs --tail --app $HEROKU_APP_NAME" 

@@ -18,8 +18,11 @@ const __dirname = path.dirname(__filename);
 
 // Load env variables
 dotenv.config({ path: "./.env" });
+// Log environment variables - Both Azure and ElevenLabs
 console.log("🔐 AZURE VOICE:", process.env.AZURE_SPEECH_VOICE);
-console.log("🔐 REGION:", process.env.AZURE_SPEECH_REGION);
+console.log("🔐 AZURE REGION:", process.env.AZURE_SPEECH_REGION);
+console.log("🔐 ELEVENLABS API KEY:", process.env.ELEVEN_LABS_API_KEY ? "✅ Set" : "❌ Missing");
+console.log("🔐 ELEVENLABS VOICE ID:", process.env.ELEVEN_LABS_VOICE_ID || "Using default");
 
 // Audio folder
 const audiosPath = path.resolve(__dirname, "audios");
@@ -68,6 +71,8 @@ app.post("/chat", async (req, res) => {
     const engine = req.body.engine || "elevenlabs"; // "azure" ou "elevenlabs"
     if (!userMessage) return res.status(400).json({ error: "Missing message." });
 
+    console.log(`🎙️ Using TTS engine: ${engine}`);
+    
     const { messages } = await answerWithRAG(userMessage);
 
     const processed = await Promise.all(
