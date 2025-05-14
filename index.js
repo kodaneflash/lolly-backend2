@@ -65,6 +65,76 @@ app.get("/health", (_, res) =>
   })
 );
 
+// Map Rhubarb lipsync shapes to Ready Player Me ARKit blend shapes
+function mapRhubarbToARKit(mouthCues) {
+  if (!mouthCues || !Array.isArray(mouthCues)) {
+    console.warn("⚠️ Invalid mouthCues data provided to mapRhubarbToARKit");
+    return { mouthCues: [] };
+  }
+
+  // Mapping from Rhubarb mouth shapes to ARKit blend shapes
+  // Reference: https://docs.readyplayer.me/ready-player-me/api-reference/avatars/morph-targets/apple-arkit
+  const rhubarbToARKit = {
+    'X': { // Closed mouth (neutral)
+      mouthOpen: 0.0,
+      mouthClose: 1.0,
+      jawOpen: 0.0,
+    },
+    'A': { // Closed mouth
+      mouthOpen: 0.0,
+      mouthClose: 1.0,
+      jawOpen: 0.0,
+    },
+    'B': { // Slightly open mouth with teeth closed
+      jawOpen: 0.2,
+      mouthOpen: 0.25,
+      mouthClose: 0.5,
+    },
+    'C': { // Open mouth for "eh" sounds
+      jawOpen: 0.4,
+      mouthOpen: 0.5,
+      mouthClose: 0.0,
+    },
+    'D': { // Wide open mouth
+      jawOpen: 0.8,
+      mouthOpen: 0.8,
+      mouthClose: 0.0,
+    },
+    'E': { // Slightly rounded mouth
+      jawOpen: 0.3,
+      mouthOpen: 0.4,
+      mouthPucker: 0.5,
+    },
+    'F': { // Puckered lips
+      mouthPucker: 1.0,
+      mouthOpen: 0.2,
+    },
+    'G': { // Upper teeth touching lower lip
+      mouthOpen: 0.3,
+      jawOpen: 0.2,
+      mouthLowerDownLeft: 0.5,
+      mouthLowerDownRight: 0.5,
+    },
+    'H': { // L sound, tongue up
+      mouthOpen: 0.4,
+      jawOpen: 0.3,
+      tongueOut: 0.3,
+    }
+  };
+
+  // Go through each mouth cue and convert it to ARKit blend shapes
+  const enhancedMouthCues = mouthCues.map(cue => {
+    const blendShapes = rhubarbToARKit[cue.value] || rhubarbToARKit['X'];
+    return {
+      ...cue,
+      blendShapes  // Add ARKit blend shape values
+    };
+  });
+
+  console.log(`✅ Mapped ${mouthCues.length} Rhubarb cues to ARKit blend shapes`);
+  return { mouthCues: enhancedMouthCues };
+}
+
 app.post("/chat", async (req, res) => {
   try {
     const userMessage = req.body.message;
@@ -107,7 +177,10 @@ app.post("/chat", async (req, res) => {
             // Read the generated files
             audio = await audioFileToBase64(mp3Path);
             const lipsyncData = await readJsonTranscript(jsonPath);
-            cues = lipsyncData.mouthCues;
+
+            // Map Rhubarb mouth shapes to ARKit blend shapes 
+            const enhancedLipsyncData = mapRhubarbToARKit(lipsyncData.mouthCues);
+            cues = enhancedLipsyncData.mouthCues;
           }
 
           return {
