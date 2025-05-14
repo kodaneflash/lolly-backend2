@@ -29,23 +29,19 @@ await fs.mkdir(audiosPath, { recursive: true });
 const app = express();
 const port = process.env.PORT || 3000;
 
-// CORS
-// CORS - remplacement complet
+// Get allowed origins from environment variables or use default
+const allowedOrigins = process.env.ALLOWED_ORIGINS 
+  ? process.env.ALLOWED_ORIGINS.split(',') 
+  : ["https://lolly.gg", "https://www.lolly.gg"];
+  
+console.log("🔒 CORS allowed origins:", allowedOrigins);
+
+// CORS configuration
 app.use(cors({
-  origin: [
-    "https://lolly.gg"
-  ],
+  origin: allowedOrigins,
   methods: ["GET", "POST", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"]
 }));
-
-
-app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
-  res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  next();
-});
 
 app.use(express.json());
 app.use("/audios", express.static(audiosPath));
@@ -57,7 +53,7 @@ app.use((req, res, next) => {
 });
 
 // Healthcheck
-app.get("/", (_, res) => res.send("✅ Neemba backend is running."));
+app.get("/", (_, res) => res.send("✅ Lolly AI backend is running."));
 app.get("/health", (_, res) =>
   res.status(200).json({
     status: "ok",
@@ -177,7 +173,7 @@ const startServer = async () => {
     await ingestDocuments();
     console.log("✅ Documents ready.");
     app.listen(port, () => {
-      console.log(`🚀 Neemba API listening on port ${port}`);
+      console.log(`🚀 Lolly AI backend listening on port ${port}`);
     });
   } catch (err) {
     console.error("❌ Startup failed:", err);

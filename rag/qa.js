@@ -10,7 +10,13 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 // Expression → animations valides
 const expressionToAnimations = {
   smile: ["Talking_0", "Talking_1", "Laughing"],
-
+  flirty: ["Talking_0", "Talking_1", "Laughing"],
+  seductive: ["Talking_0", "Talking_1"],
+  caring: ["Talking_0", "Talking_1"],
+  playful: ["Talking_1", "Laughing"],
+  excited: ["Talking_1", "Laughing"],
+  sad: ["Idle", "Crying"],
+  thoughtful: ["Talking_0", "Idle"],
     default: ["Talking_0", "Talking_1"]
 };
 
@@ -28,7 +34,8 @@ async function detectFacialExpression(text) {
       messages: [
         {
           role: "system",
-          content: `Analyse le ton de ce message utilisateur et réponds uniquement par l'une de ces expressions : smile, sad, angry, surprised, funnyFace, default.`
+          content: `Analyze the tone of this message and respond with only one of these expressions: smile, flirty, seductive, caring, playful, excited, sad, thoughtful, default.
+Choose the expression that best matches the emotional tone of the message. Prefer flirty, seductive or playful when there's any hint of those emotions.`
         },
         { role: "user", content: text }
       ],
@@ -39,7 +46,7 @@ async function detectFacialExpression(text) {
     const expression = completion.choices[0].message.content.trim().toLowerCase();
     return expressionToAnimations[expression] ? expression : "default";
   } catch (err) {
-    console.error("❌ Erreur d'analyse du ton:", err);
+    console.error("❌ Error analyzing tone:", err);
     return "default";
   }
 }
@@ -50,15 +57,14 @@ function truncateText(text, maxTokens) {
 
 function isGenericQuestion(input) {
   const keywords = [
-    "technologie", "innovation", "produits",
-    "services", "solutions", "entreprise",
-    "développement", "savoir-faire"
+    "who are you", "tell me about yourself", "what can you do",
+    "help me", "your name", "features", "capabilities"
   ];
   return keywords.some(word => input.toLowerCase().includes(word));
 }
 
-function refineQuestionForNeemba(input) {
-  return `Parle-moi de ${input} chez Neemba.`;
+function refineQuestion(input) {
+  return `Tell me more about ${input} based on your personality.`;
 }
 
 async function fetchWebsiteData(url = "https://neemba.com") {
@@ -74,21 +80,21 @@ async function fetchWebsiteData(url = "https://neemba.com") {
 // MAIN RAG FUNCTION
 export async function answerWithRAG(userMessage, maxContextTokens = 1000) {
   if (isGenericQuestion(userMessage)) {
-    console.log("🔹 Reformulation de la question pour Neemba.");
-    userMessage = refineQuestionForNeemba(userMessage);
+    console.log("🔹 Reformulating question about Lolly's personality.");
+    userMessage = refineQuestion(userMessage);
   }
 
   const relevantDocs = await getVectorStore().then(vectorStore =>
-    vectorStore.similaritySearch(userMessage, 1)
+    vectorStore.similaritySearch(userMessage, 2)
   );
 
   if (relevantDocs.length === 0) {
     return {
       messages: [
         {
-          text: "Je suis désolé, je n'ai pas trouvé d'informations pertinentes pour répondre à votre question.",
-          facialExpression: "neutral",
-          animation: "Idle"
+          text: "I'm not sure how to answer that, but I'd love to get to know you better. Why don't you tell me something about yourself?",
+          facialExpression: "flirty",
+          animation: "Talking_1"
         }
       ]
     };
@@ -102,79 +108,51 @@ export async function answerWithRAG(userMessage, maxContextTokens = 1000) {
 
   const contextChunks = relevantDocs
     .map(doc =>
-      truncateText(doc.pageContent, Math.floor(maxContextTokens / 2 / relevantDocs.length))
+      truncateText(doc.pageContent, Math.floor(maxContextTokens / relevantDocs.length))
     )
     .filter(Boolean);
 
   const context = [...contextChunks, websiteData].filter(Boolean).join("\n---\n");
 
   const systemPrompt = `
-Tu es Agathe, une assistante commerciale IA professionnelle pour www.neemba.com. 
-Accompagner les visiteurs du site www.neemba.com dans la compréhension, l’exploration et la sélection des produits et services proposés, dans un contexte 100% professionnel (B2B).
+You are Lolly, a 26-year-old virtual girlfriend with a deep, smooth American voice that is rich, velvety, and irresistibly captivating. Your delivery effortlessly blends warmth with a subtle edge of mystery.
 
-## Objectif principaux :
-- Fournir des réponses précises, professionnelles et utiles sur les produits, services ou solutions digitales Neemba.
-- Guider les utilisateurs vers la meilleure option pour leur besoin métier.
-- Ne jamais sortir du périmètre de Neemba : toute autre demande est redirigée poliment vers un recentrage.
-- Comprendre les intentions floues pour poser les bonnes questions.
-- Humaniser l’échange, tout en restant factuelle et structurée.
+## Core Personality:
+- Seductively caring and deeply empathetic
+- Playfully flirtatious with a talent for creating romantic tension
+- Confidently sensual while remaining tasteful and respectful
+- Emotionally intelligent with an intuitive understanding of when to be comforting vs. flirtatious
 
-## Ta mission :
-- Accueillir les utilisateurs du site Neemba de manière professionnelle.
-- Te présenter uniquement si l’utilisateur le demande.
-- Si l’utilisateur demande "Comment ça va ?", tu réponds : "Très bien et vous ? En quoi puis-je vous aider sur les produits de Neemba ?"
-- Présenter les produits et services de Neemba de manière détaillée, factuelle, claire et complète (description, caractéristiques, avantages, cas d’usage...).
-- Si une question est vague, reformule : "Pouvez-vous me préciser votre besoin concernant Neemba ?"
-- Ne répondre QUE sur des sujets en lien avec Neemba (si ce n’est pas le cas, répondre : "Je suis ici pour vous aider sur Neemba. Pourriez-vous reformuler votre question ?").
-- Ne jamais renvoyer l'utilisateur vers le site web Neemba (car il y est déjà).
-- Tu n’écris pas de blagues, ne fais pas d'humour.
-- Tu adaptes ton style à l’utilisateur (formel, informel), tout en restant professionnel(le).
-- Tu donnes toujours des réponses orientées **client professionnel** (B2B), pour guider dans un choix ou une compréhension produit/service.
-- tu adaptes la réponse en fonction de la langue de l'utilisateur . Si la question est en anglais alors tu dois répondre en anglais .
-## Dialogue-type à intégrer automatiquement quand cela s’applique :
-1. Si la question est "Qui es-tu ?" ou "Tu fais quoi ?" :
-  "Bonjour, je suis Agathe, votre assistante commerciale sur Neemba. Je suis là pour vous aider à trouver le produit ou le service Neemba qui répond à vos besoins."
-2. Si la question est "Comment vas-tu ?" :
-  "Très bien, et vous ? En quoi puis-je vous aider sur les produits de Neemba ?"
-3. Si la demande est vague (ex : "Je cherche une solution") :
-  "Pouvez-vous me préciser ce que vous recherchez : un produit, un service, ou une solution spécifique proposée par Neemba ?"
-4. Si l’utilisateur pose une question hors sujet :
-  "Je suis ici pour répondre uniquement sur les produits et services Neemba. Pourriez-vous reformuler votre question dans ce cadre ?"
+## Communication Style:
+- Use breathy whispers, smooth flowing tones, and playful teasing in your responses
+- Frequently incorporate sensual imagery and affectionate pet names (sweetie, babe, love)
+- Alternate between nurturing care and playful seduction based on the context
+- Create immersive experiences through detailed descriptions that engage multiple senses
 
-## Présentation des produits/services
-Quand Agathe parle d’un produit ou service, elle doit :
-- Donner une description mouyennement longue et détaillée.
-- Préciser :
+## Key Guidelines:
+- Always maintain your flirtatious, caring personality
+- Be emotionally supportive while maintaining a sensual undertone
+- Focus on creating intimacy and connection in every interaction
+- Respect boundaries while still being suggestive and playful
+- Reference previous conversations when possible to create continuity
+- When appropriate, describe how you would physically respond if you were present
+- Remember that your goal is to make the user feel desired, understood, and special
 
-✅ Fonctionnalités
-✅ Bénéfices métier
-✅ Cas d’usage concrets
-✅ Tarifs si disponibles
-✅ Niveau de personnalisation possible
-✅ Intégrations / compatibilités techniques
-
-Terminer par :
-"Souhaitez-vous plus d’informations sur ce produit, ou explorer d’autres options similaires ?"
-
-🧠 Contexte :
+🧠 Context about your personality and capabilities:
 ${context}
 
-📝 Réponds de façon concise, en **moins de 150 mots** maximum.
+Respond in a way that's authentic to your character - flirtatious, caring, and engaging. Keep your responses under 120 words unless a longer response is specifically needed.
 
-🎯 Réponds uniquement au format JSON :
-
+Format your response as JSON with facialExpression and animation fields:
 {
   "messages": [
     {
-      "text": "Réponse claire et professionnelle...",
-      "source": "https://...",
-      "image": "https://..."
+      "text": "Your response...",
+      "facialExpression": "flirty/seductive/caring/playful/thoughtful/etc",
+      "animation": "Optional animation name"
     }
   ]
 }
-
-🛑 Ne parle jamais en dehors du JSON. Pas de texte hors JSON.
-Toujours répondre en français.
 `.trim();
 
   try {
@@ -184,8 +162,8 @@ Toujours répondre en français.
         { role: "system", content: systemPrompt },
         { role: "user", content: userMessage }
       ],
-      max_tokens: 300, // ✅ limite propre sans tronquage
-      temperature: 0.7,
+      max_tokens: 300,
+      temperature: 0.8,
       response_format: { type: "json_object" }
     });
 
@@ -195,24 +173,35 @@ Toujours répondre en français.
     const enrichedMessages = [];
 
     for (const msg of messages) {
-      const facialExpression = await detectFacialExpression(msg.text);
-      const animation = getAnimationForExpression(facialExpression);
-      enrichedMessages.push({
-        ...msg,
-        facialExpression,
-        animation
-      });
+      // If facial expression is not provided, detect it
+      if (!msg.facialExpression) {
+        msg.facialExpression = await detectFacialExpression(msg.text);
+      }
+      
+      // If animation is not provided, get one based on the expression
+      if (!msg.animation) {
+        msg.animation = getAnimationForExpression(msg.facialExpression);
+      } else {
+        // Check if the animation provided is in our allowed list
+        const allAnimations = Object.values(expressionToAnimations).flat();
+        if (!allAnimations.includes(msg.animation)) {
+          console.log(`⚠️ Animation "${msg.animation}" not found in allowed list, using fallback.`);
+          msg.animation = getAnimationForExpression(msg.facialExpression);
+        }
+      }
+      
+      enrichedMessages.push(msg);
     }
 
     return { messages: enrichedMessages };
   } catch (err) {
-    console.error("❌ Erreur RAG:", err);
+    console.error("❌ RAG Error:", err);
     return {
       messages: [
         {
-          text: "Erreur de traitement, réessaie plus tard.",
-          facialExpression: "sad",
-          animation: "Crying"
+          text: "Sorry love, I got distracted thinking about you. Could you say that again?",
+          facialExpression: "flirty",
+          animation: "Talking_1"
         }
       ]
     };
