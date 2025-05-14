@@ -33,9 +33,19 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 // Get allowed origins from environment variables or use default
-const allowedOrigins = process.env.ALLOWED_ORIGINS 
-  ? process.env.ALLOWED_ORIGINS.split(',') 
-  : ["https://lolly.gg", "https://www.lolly.gg"];
+// Start with the origin that must always be allowed for direct IP access/testing
+let dynamicOrigins = ["http://3.226.248.42:3000"];
+
+if (process.env.ALLOWED_ORIGINS) {
+  // If ALLOWED_ORIGINS is set in the environment, add them
+  dynamicOrigins = dynamicOrigins.concat(process.env.ALLOWED_ORIGINS.split(','));
+} else {
+  // If no environment variable, add default production origins
+  dynamicOrigins = dynamicOrigins.concat(["https://lolly.gg", "https://www.lolly.gg"]);
+}
+
+// Use a Set to ensure all origins are unique and then convert back to an array
+const allowedOrigins = [...new Set(dynamicOrigins)];
   
 console.log("🔒 CORS allowed origins:", allowedOrigins);
 
